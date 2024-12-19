@@ -8,8 +8,9 @@
       [canvasElement]="placed"
       [canvasWidth]="canvasWidth"
       [canvasHeight]="canvasHeight"
+      [allCanvasElements]="placedElements"
       (dragStarted)="onDragStart($event)"
-      >
+      (elementDroppedOn)="onElementDropped($event)">
     </app-element-canvas-card>
   </div>
 

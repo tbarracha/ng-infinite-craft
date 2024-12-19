@@ -10,7 +10,9 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   @Input() canvasElement!: CanvasElement;
   @Input() canvasWidth!: number;
   @Input() canvasHeight!: number;
+  @Input() allCanvasElements: CanvasElement[] = []; // Default to an empty array
   @Output() dragStarted = new EventEmitter<{ canvasId: string; offsetX: number; offsetY: number }>();
+  @Output() elementDroppedOn = new EventEmitter<CanvasElement>(); // Event for detecting drop on another element
   @ViewChild('card', { static: false }) cardRef!: ElementRef<HTMLDivElement>;
 
   private isDragging = false;
@@ -67,19 +69,42 @@ export class ElementCanvasCardComponent implements AfterViewInit {
 
       // Reset z-index after dragging
       this.cardRef.nativeElement.style.zIndex = '1';
+
+      // Check for collisions
+      this.checkForCollisions();
     }
 
     this.isDragging = false;
   }
 
-  @HostListener('document:mouseleave', ['$event'])
-  onMouseLeave(event: MouseEvent) {
-    if (!this.isDragging) {
-      return;
+  private checkForCollisions() {
+    if (!Array.isArray(this.allCanvasElements)) {
+      return; // Safeguard against undefined or null
     }
 
-    // Reset z-index if dragging stops due to mouse leaving the document
-    this.cardRef.nativeElement.style.zIndex = '1';
-    this.isDragging = false;
+    const thisRect = this.cardRef.nativeElement.getBoundingClientRect();
+
+    for (const element of this.allCanvasElements) {
+      if (element.canvasId === this.canvasElement.canvasId) {
+        continue; // Skip self
+      }
+
+      const otherElement = document.querySelector(`[data-id="${element.canvasId}"]`) as HTMLElement;
+      if (otherElement) {
+        const otherRect = otherElement.getBoundingClientRect();
+
+        if (
+          thisRect.left < otherRect.right &&
+          thisRect.right > otherRect.left &&
+          thisRect.top < otherRect.bottom &&
+          thisRect.bottom > otherRect.top
+        ) {
+          // Collision detected
+          this.elementDroppedOn.emit(element);
+          console.log(`Dropped on: ${element.element.name}`);
+          break;
+        }
+      }
+    }
   }
 }

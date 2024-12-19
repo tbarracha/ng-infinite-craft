@@ -102,4 +102,8 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
   clearCanvas() {
     this.placedElements = [];
   }
+
+  onElementDropped(targetElement: CanvasElement) {
+    console.log(`Dropped on element: ${targetElement.element.name}`);
+  }
 }
