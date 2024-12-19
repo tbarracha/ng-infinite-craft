@@ -4,6 +4,13 @@ export interface Element {
     emoji: string;
 }
 
+export interface CanvasElement {
+    canvasId: string;
+    element: Element;
+    x: number;
+    y: number;
+  }
+
 export const DEFAULT_ELEMENTS: Element[] =  [
     { id: '1', name: 'Water', emoji: '💧' },
     { id: '2', name: 'Earth', emoji: '🪨' },

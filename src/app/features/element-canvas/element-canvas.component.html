@@ -1,14 +1,13 @@
 <div #canvas
   class="relative w-full h-full bg-gray-50 border"
   (drop)="onDrop($event)"
-  (dragover)="onDragOver($event)">
-  <div
+  (dragover)="onDragOver($event)"
+  >
+  <app-element-canvas-card
     *ngFor="let placed of placedElements"
-    class="absolute"
-    [style.left.px]="placed.x"
-    [style.top.px]="placed.y">
-    <app-element-card [element]="placed.element"></app-element-card>
-  </div>
+    [canvasElement]="placed"
+    (dragStarted)="onDragStart($event)">
+  </app-element-canvas-card>
 
   <!-- Button Section -->
   <div class="absolute bottom-0 h-12 w-full bg-gray-100 border-t p-4 flex items-center gap-2">

@@ -1,0 +1,8 @@
+<div
+  class="absolute bg-gray-100 p-2 rounded shadow-md cursor-grab"
+  [style.left.px]="canvasElement.x"
+  [style.top.px]="canvasElement.y"
+  draggable="true">
+  <span>{{ canvasElement.element.emoji }}</span>
+  <span>{{ canvasElement.element.name }}</span>
+</div>

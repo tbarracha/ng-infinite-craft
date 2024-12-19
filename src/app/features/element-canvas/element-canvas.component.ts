@@ -1,20 +1,21 @@
 import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
-import { Element } from '../element/element';
-import { ElementCardComponent } from '../element-card/element-card.component';
-import { NgFor } from '@angular/common';
+import { Element, CanvasElement } from '../element/element';
 import { ElementEventService } from '../element/element-event.service';
+import { NgFor } from '@angular/common';
+import { ElementCanvasCardComponent } from '../element-canvas-card/element-canvas-card.component';
 
 @Component({
   selector: 'app-element-canvas',
   templateUrl: './element-canvas.component.html',
   styleUrls: ['./element-canvas.component.scss'],
-  imports: [NgFor, ElementCardComponent],
+  imports: [NgFor, ElementCanvasCardComponent],
 })
 export class ElementCanvasComponent implements OnInit, AfterViewInit {
-  placedElements: { element: Element; x: number; y: number }[] = [];
+  placedElements: CanvasElement[] = [];
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLDivElement>;
   canvasWidth: number = 0;
   canvasHeight: number = 0;
+  draggedElement: { canvasId: string; offsetX: number; offsetY: number } | null = null;
 
   constructor() {}
 
@@ -31,19 +32,27 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
 
   updateCanvasBounds() {
     const canvas = this.canvasRef.nativeElement;
-    this.canvasWidth = canvas.offsetWidth;
-    this.canvasHeight = canvas.offsetHeight;
+    const rect = canvas.getBoundingClientRect();
+    this.canvasWidth = rect.width;
+    this.canvasHeight = rect.height;
+  }
+
+  generateCanvasId(): string {
+    return Math.random().toString(36).substr(2, 9); // Generate a unique ID for canvas elements
   }
 
   placeElement(element: Element, x: number, y: number) {
-    const existingElement = this.placedElements.find((e) => e.element.id === element.id);
+    // Ensure the element is placed within the canvas bounds
+    x = Math.max(0, Math.min(this.canvasWidth, x));
+    y = Math.max(0, Math.min(this.canvasHeight, y));
 
-    if (existingElement) {
-      existingElement.x = x;
-      existingElement.y = y;
-    } else {
-      this.placedElements.push({ element, x, y });
-    }
+    const canvasElement: CanvasElement = {
+      canvasId: this.generateCanvasId(),
+      element,
+      x,
+      y,
+    };
+    this.placedElements.push(canvasElement);
   }
 
   placeElementAtRandomPosition(element: Element) {
@@ -52,19 +61,30 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     this.placeElement(element, x, y);
   }
 
+  onDragStart({ canvasId, offsetX, offsetY }: { canvasId: string; offsetX: number; offsetY: number }) {
+    this.draggedElement = { canvasId, offsetX, offsetY };
+  }
+
   onDrop(event: DragEvent) {
     event.preventDefault();
-    const elementData = event.dataTransfer?.getData('text/plain');
-    const offsetX = parseFloat(event.dataTransfer?.getData('offsetX') || '0');
-    const offsetY = parseFloat(event.dataTransfer?.getData('offsetY') || '0');
+    if (this.draggedElement) {
+      const { canvasId, offsetX, offsetY } = this.draggedElement;
+      const canvasElement = this.placedElements.find((e) => e.canvasId === canvasId);
 
-    if (elementData) {
-      const element: Element = JSON.parse(elementData);
-      const canvasRect = this.canvasRef.nativeElement.getBoundingClientRect();
-      const x = event.clientX - canvasRect.left - offsetX;
-      const y = event.clientY - canvasRect.top - offsetY;
+      if (canvasElement) {
+        const canvasRect = this.canvasRef.nativeElement.getBoundingClientRect();
+        let x = event.clientX - canvasRect.left - offsetX;
+        let y = event.clientY - canvasRect.top - offsetY;
 
-      this.placeElement(element, x, y);
+        // Ensure the element stays within the canvas bounds
+        x = Math.max(0, Math.min(this.canvasWidth, x));
+        y = Math.max(0, Math.min(this.canvasHeight, y));
+
+        canvasElement.x = x;
+        canvasElement.y = y;
+      }
+
+      this.draggedElement = null; // Reset the dragging state
     }
   }
 
