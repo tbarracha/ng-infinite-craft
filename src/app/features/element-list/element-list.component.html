@@ -1,0 +1,10 @@
+<section class="h-full w-full flex flex-col p-2 gap-4 border-l">
+    <h2 class="text-center">Available Elements</h2>
+
+    <!-- Element List -->
+    <div class="w-full flex-grow items-start">
+        @for (element of elements; track $index) {
+            <app-element-card [element]="element"></app-element-card>
+        }
+    </div>
+</section>

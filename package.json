@@ -1,12 +1,16 @@
 {
-  "name": "ng-infinite-craft-transformer",
+  "name": "ng-angspire",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:win32": "ng serve --port %PORT%",
+    "start:default": "ng serve --port $PORT",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "theme-sync": "node theme-sync.js update",
+    "theme-clear": "node theme-sync.js clear"
   },
   "private": true,
   "dependencies": {
@@ -18,6 +22,9 @@
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
+    "fs": "^0.0.1-security",
+    "jwt-decode": "^4.0.0",
+    "path": "^0.12.7",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
@@ -33,6 +40,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "tailwindcss": "^3.4.16",
     "typescript": "~5.6.2"
   }
 }

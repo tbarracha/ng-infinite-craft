@@ -1,0 +1,21 @@
+<div #canvas
+  class="relative w-full h-full bg-gray-50 border"
+  (drop)="onDrop($event)"
+  (dragover)="onDragOver($event)">
+  <div
+    *ngFor="let placed of placedElements"
+    class="absolute"
+    [style.left.px]="placed.x"
+    [style.top.px]="placed.y">
+    <app-element-card [element]="placed.element"></app-element-card>
+  </div>
+
+  <!-- Button Section -->
+  <div class="absolute bottom-0 h-12 w-full bg-gray-100 border-t p-4 flex items-center gap-2">
+    <button
+      class="bg-red-500 text-white p-1 rounded hover:bg-red-600"
+      (click)="clearCanvas()">
+      Clear
+    </button>
+  </div>
+</div>
