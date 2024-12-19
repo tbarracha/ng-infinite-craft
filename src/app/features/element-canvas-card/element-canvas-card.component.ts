@@ -32,6 +32,9 @@ export class ElementCanvasCardComponent implements AfterViewInit {
     this.offsetY = event.clientY - rect.top;
     this.isDragging = true;
 
+    // Raise z-index while dragging
+    this.cardRef.nativeElement.style.zIndex = '1000';
+
     event.stopPropagation();
   }
 
@@ -61,6 +64,9 @@ export class ElementCanvasCardComponent implements AfterViewInit {
         0,
         Math.min(this.canvasHeight - this.cardHeight, this.canvasElement.y)
       );
+
+      // Reset z-index after dragging
+      this.cardRef.nativeElement.style.zIndex = '1';
     }
 
     this.isDragging = false;
@@ -72,6 +78,8 @@ export class ElementCanvasCardComponent implements AfterViewInit {
       return;
     }
 
-    this.isDragging = false; // Stop dragging if the mouse leaves the document
+    // Reset z-index if dragging stops due to mouse leaving the document
+    this.cardRef.nativeElement.style.zIndex = '1';
+    this.isDragging = false;
   }
 }
