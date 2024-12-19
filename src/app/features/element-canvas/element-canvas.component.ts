@@ -63,6 +63,13 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
 
   onDragStart({ canvasId, offsetX, offsetY }: { canvasId: string; offsetX: number; offsetY: number }) {
     this.draggedElement = { canvasId, offsetX, offsetY };
+
+    // Move the dragged element to the end of the list
+    const index = this.placedElements.findIndex((e) => e.canvasId === canvasId);
+    if (index !== -1) {
+      const [element] = this.placedElements.splice(index, 1);
+      this.placedElements.push(element);
+    }
   }
 
   onDrop(event: DragEvent) {
