@@ -1,7 +1,4 @@
-<div
-  class="w-full h-full flex flex-col bg-gray-50 border"
-  (drop)="onDrop($event)"
-  (dragover)="onDragOver($event)">
+<div class="w-full h-full flex flex-col bg-gray-50 border">
   <div #canvas class="flex-grow">
     <app-element-canvas-card
       *ngFor="let placed of placedElements"
@@ -9,8 +6,7 @@
       [canvasWidth]="canvasWidth"
       [canvasHeight]="canvasHeight"
       [allCanvasElements]="placedElements"
-      (dragStarted)="onDragStart($event)"
-      (elementDroppedOn)="onElementDropped($event)">
+      >
     </app-element-canvas-card>
   </div>
 

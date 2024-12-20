@@ -1,5 +1,6 @@
 import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { Element, CanvasElement } from '../element/element';
+import { ElementService } from '../element/element.service';
 import { ElementEventService } from '../element/element-event.service';
 import { NgFor } from '@angular/common';
 import { ElementCanvasCardComponent } from '../element-canvas-card/element-canvas-card.component';
@@ -15,13 +16,18 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLDivElement>;
   canvasWidth: number = 0;
   canvasHeight: number = 0;
-  draggedElement: { canvasId: string; offsetX: number; offsetY: number } | null = null;
 
-  constructor() {}
+  constructor(private elementService: ElementService) {}
 
   ngOnInit() {
+    this.updatePlacedElements();
+
     ElementEventService.onElementClicked.subscribe((element) => {
       this.placeElementAtRandomPosition(element);
+    });
+
+    ElementEventService.onElementDroppedOn.subscribe(({ sourceElement, targetElement }) => {
+      this.handleMerge(sourceElement, targetElement);
     });
   }
 
@@ -37,73 +43,33 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     this.canvasHeight = rect.height;
   }
 
-  generateCanvasId(): string {
-    return Math.random().toString(36).substr(2, 9); // Generate a unique ID for canvas elements
-  }
-
-  placeElement(element: Element, x: number, y: number) {
-    // Ensure the element is placed within the canvas bounds
-    x = Math.max(0, Math.min(this.canvasWidth, x));
-    y = Math.max(0, Math.min(this.canvasHeight, y));
-
-    const canvasElement: CanvasElement = {
-      canvasId: this.generateCanvasId(),
-      element,
-      x,
-      y,
-    };
-    this.placedElements.push(canvasElement);
+  updatePlacedElements() {
+    this.placedElements = this.elementService.getPlacedElements();
   }
 
   placeElementAtRandomPosition(element: Element) {
     const x = Math.random() * (this.canvasWidth - 50);
     const y = Math.random() * (this.canvasHeight - 50);
-    this.placeElement(element, x, y);
+    this.elementService.addPlacedElement(element, x, y);
+    this.updatePlacedElements();
   }
 
-  onDragStart({ canvasId, offsetX, offsetY }: { canvasId: string; offsetX: number; offsetY: number }) {
-    this.draggedElement = { canvasId, offsetX, offsetY };
+  handleMerge(source: CanvasElement, target: CanvasElement) {
+    const midX = (source.x + target.x) / 2;
+    const midY = (source.y + target.y) / 2;
 
-    // Move the dragged element to the end of the list
-    const index = this.placedElements.findIndex((e) => e.canvasId === canvasId);
-    if (index !== -1) {
-      const [element] = this.placedElements.splice(index, 1);
-      this.placedElements.push(element);
+    const mergedElement = this.elementService.mergeElements(source.element.id, target.element.id);
+
+    if (mergedElement) {
+      this.elementService.removePlacedElement(source.canvasId);
+      this.elementService.removePlacedElement(target.canvasId);
+      this.elementService.addPlacedElement(mergedElement, midX, midY);
+      this.updatePlacedElements();
     }
-  }
-
-  onDrop(event: DragEvent) {
-    event.preventDefault();
-    if (this.draggedElement) {
-      const { canvasId, offsetX, offsetY } = this.draggedElement;
-      const canvasElement = this.placedElements.find((e) => e.canvasId === canvasId);
-
-      if (canvasElement) {
-        const canvasRect = this.canvasRef.nativeElement.getBoundingClientRect();
-        let x = event.clientX - canvasRect.left - offsetX;
-        let y = event.clientY - canvasRect.top - offsetY;
-
-        // Ensure the element stays within the canvas bounds
-        x = Math.max(0, Math.min(this.canvasWidth, x));
-        y = Math.max(0, Math.min(this.canvasHeight, y));
-
-        canvasElement.x = x;
-        canvasElement.y = y;
-      }
-
-      this.draggedElement = null; // Reset the dragging state
-    }
-  }
-
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
   }
 
   clearCanvas() {
-    this.placedElements = [];
-  }
-
-  onElementDropped(targetElement: CanvasElement) {
-    console.log(`Dropped on element: ${targetElement.element.name}`);
+    this.elementService.clearPlacedElements();
+    this.updatePlacedElements();
   }
 }

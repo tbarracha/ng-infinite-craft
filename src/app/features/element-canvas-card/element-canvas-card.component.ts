@@ -1,5 +1,6 @@
-import { Component, Input, Output, EventEmitter, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, Input, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CanvasElement } from '../element/element';
+import { ElementEventService } from '../element/element-event.service';
 
 @Component({
   selector: 'app-element-canvas-card',
@@ -10,9 +11,7 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   @Input() canvasElement!: CanvasElement;
   @Input() canvasWidth!: number;
   @Input() canvasHeight!: number;
-  @Input() allCanvasElements: CanvasElement[] = []; // Default to an empty array
-  @Output() dragStarted = new EventEmitter<{ canvasId: string; offsetX: number; offsetY: number }>();
-  @Output() elementDroppedOn = new EventEmitter<CanvasElement>(); // Event for detecting drop on another element
+  @Input() allCanvasElements: CanvasElement[] = [];
   @ViewChild('card', { static: false }) cardRef!: ElementRef<HTMLDivElement>;
 
   private isDragging = false;
@@ -46,18 +45,16 @@ export class ElementCanvasCardComponent implements AfterViewInit {
       const newX = event.clientX - this.offsetX;
       const newY = event.clientY - this.offsetY;
 
-      // Move the element without constraining during dragging
       this.canvasElement.x = newX;
       this.canvasElement.y = newY;
 
-      event.preventDefault(); // Prevent text selection or unwanted scrolling
+      event.preventDefault();
     }
   }
 
   @HostListener('document:mouseup', ['$event'])
   onMouseUp(event: MouseEvent) {
     if (this.isDragging) {
-      // Constrain the element position within canvas bounds, accounting for card dimensions
       this.canvasElement.x = Math.max(
         0,
         Math.min(this.canvasWidth - this.cardWidth, this.canvasElement.x)
@@ -67,10 +64,8 @@ export class ElementCanvasCardComponent implements AfterViewInit {
         Math.min(this.canvasHeight - this.cardHeight, this.canvasElement.y)
       );
 
-      // Reset z-index after dragging
       this.cardRef.nativeElement.style.zIndex = '1';
 
-      // Check for collisions
       this.checkForCollisions();
     }
 
@@ -78,10 +73,6 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   }
 
   private checkForCollisions() {
-    if (!Array.isArray(this.allCanvasElements)) {
-      return; // Safeguard against undefined or null
-    }
-
     const thisRect = this.cardRef.nativeElement.getBoundingClientRect();
 
     for (const element of this.allCanvasElements) {
@@ -99,8 +90,10 @@ export class ElementCanvasCardComponent implements AfterViewInit {
           thisRect.top < otherRect.bottom &&
           thisRect.bottom > otherRect.top
         ) {
-          // Collision detected
-          this.elementDroppedOn.emit(element);
+          ElementEventService.onElementDroppedOn.emit({
+            sourceElement: this.canvasElement,
+            targetElement: element,
+          });
           console.log(`Dropped on: ${element.element.name}`);
           break;
         }

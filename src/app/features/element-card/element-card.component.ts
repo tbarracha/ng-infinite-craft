@@ -25,9 +25,6 @@ export class ElementCardComponent {
 
       event.dataTransfer.setData('offsetX', offsetX.toString());
       event.dataTransfer.setData('offsetY', offsetY.toString());
-
-      // Emit drag event
-      ElementEventService.onElementDragged.emit(this.element);
     }
   }
 
