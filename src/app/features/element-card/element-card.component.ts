@@ -1,4 +1,4 @@
-import { Component, Input, Renderer2, ElementRef } from '@angular/core';
+import { Component, Input, Renderer2, ElementRef, HostListener } from '@angular/core';
 import { Element } from '../element/element';
 import { ElementEventService } from '../element/element-event.service';
 
@@ -16,6 +16,7 @@ export class ElementCardComponent {
     ElementEventService.onElementClicked.emit(this.element);
   }
 
+  @HostListener('dragstart', ['$event'])
   onDragStart(event: DragEvent) {
     if (event.dataTransfer) {
       event.dataTransfer.setData('text/plain', JSON.stringify(this.element));
@@ -28,9 +29,17 @@ export class ElementCardComponent {
     }
   }
 
-  onDragEnd() {
-    this.renderer.removeStyle(this.el.nativeElement, 'position');
-    this.renderer.removeStyle(this.el.nativeElement, 'top');
-    this.renderer.removeStyle(this.el.nativeElement, 'left');
+  @HostListener('dragend', ['$event'])
+  onDragEnd(event: DragEvent) {
+    const offsetX = parseFloat(event.dataTransfer?.getData('offsetX') || '0');
+    const offsetY = parseFloat(event.dataTransfer?.getData('offsetY') || '0');
+
+    if (event.clientX && event.clientY) {
+      ElementEventService.onElementDropped.emit({
+        element: this.element,
+        x: event.clientX - offsetX,
+        y: event.clientY - offsetY,
+      });
+    }
   }
 }

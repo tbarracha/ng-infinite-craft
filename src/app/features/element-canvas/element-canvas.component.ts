@@ -26,6 +26,10 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
       this.placeElementAtRandomPosition(element);
     });
 
+    ElementEventService.onElementDropped.subscribe(({ element, x, y }) => {
+      this.handleElementDrop(element, x, y);
+    });
+
     ElementEventService.onElementDroppedOn.subscribe(({ sourceElement, targetElement }) => {
       this.handleMerge(sourceElement, targetElement);
     });
@@ -51,6 +55,13 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     const x = Math.random() * (this.canvasWidth - 50);
     const y = Math.random() * (this.canvasHeight - 50);
     this.elementService.addPlacedElement(element, x, y);
+    this.updatePlacedElements();
+  }
+
+  handleElementDrop(element: Element, x: number, y: number) {
+    const constrainedX = Math.max(0, Math.min(this.canvasWidth - 50, x));
+    const constrainedY = Math.max(0, Math.min(this.canvasHeight - 50, y));
+    this.elementService.addPlacedElement(element, constrainedX, constrainedY);
     this.updatePlacedElements();
   }
 

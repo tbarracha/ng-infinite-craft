@@ -6,8 +6,9 @@ import { CanvasElement, Element } from './element';
 })
 export class ElementEventService {
   public static readonly onElementClicked = new EventEmitter<Element>();
+  public static readonly onElementDropped = new EventEmitter<{ element: Element; x: number; y: number }>();
+  
   public static readonly onElementDragged = new EventEmitter<CanvasElement>();
-  public static readonly onElementDropped = new EventEmitter<{ element: CanvasElement; x: number; y: number }>();
   public static readonly onElementDroppedOn = new EventEmitter<{ sourceElement: CanvasElement; targetElement: CanvasElement }>();
   public static readonly onElementMerged = new EventEmitter<{ elementA: CanvasElement; elementB: CanvasElement }>();
 
