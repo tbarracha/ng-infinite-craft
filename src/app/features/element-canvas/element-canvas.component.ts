@@ -65,17 +65,21 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     this.updatePlacedElements();
   }
 
-  handleMerge(source: CanvasElement, target: CanvasElement) {
+  async handleMerge(source: CanvasElement, target: CanvasElement) {
     const midX = (source.x + target.x) / 2;
     const midY = (source.y + target.y) / 2;
 
-    const mergedElement = this.elementService.mergeElements(source.element.id, target.element.id);
+    try {
+      const mergedElement = await this.elementService.mergeElements(source.element.id, target.element.id);
 
-    if (mergedElement) {
-      this.elementService.removePlacedElement(source.canvasId);
-      this.elementService.removePlacedElement(target.canvasId);
-      this.elementService.addPlacedElement(mergedElement, midX, midY);
-      this.updatePlacedElements();
+      if (mergedElement) {
+        this.elementService.removePlacedElement(source.canvasId);
+        this.elementService.removePlacedElement(target.canvasId);
+        this.elementService.addPlacedElement(mergedElement, midX, midY);
+        this.updatePlacedElements();
+      }
+    } catch (error) {
+      console.error('Error merging elements:', error);
     }
   }
 
