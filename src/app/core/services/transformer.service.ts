@@ -59,30 +59,43 @@ export class TransformerService {
     }
   }
 
+  // returning lots of things here, but only using rawOutput and cleanOutput
   async generateChatCompletion(
     prompt: string,
     options: { max_new_tokens?: number; temperature?: number } = { max_new_tokens: 512, temperature: 0.7 }
-  ): Promise<string> {
+  ): Promise<{ prompt: string; options: { max_new_tokens?: number; temperature?: number }, rawOutput: string; cleanOutput: string; }> {
     this.printTitle('GENERATING CHAT COMPLETION');
-
+  
     if (!this.textGenerator) {
       throw new Error('Model is not loaded.');
     }
-
+  
     try {
       const result = await this.textGenerator(prompt, options);
-      console.log('Model output:', result);
-
+  
       if (!result || result.length === 0 || !result[0]?.generated_text) {
         throw new Error('Model did not return any output.');
       }
-
-      return result[0].generated_text.trim();
+  
+      const rawOutput = result[0]?.generated_text.trim();
+      const cleanOutput = rawOutput.replace(prompt, '').trim();
+  
+      console.log('Model raw output:', rawOutput);
+      console.log('Cleaned model output:', cleanOutput);
+  
+      return {
+        prompt,
+        options,
+        rawOutput,
+        cleanOutput,
+      };
     } catch (error) {
       console.error('Error during text generation:', error);
       throw error;
     }
   }
+  
+  
 
   async warmUpModel(): Promise<void> {
     this.printTitle('WARMING UP MODEL');
