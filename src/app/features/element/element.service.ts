@@ -42,38 +42,78 @@ export class ElementService {
     const elementB = this.elements.find((element) => element.id === idElementB);
 
     if (!elementA || !elementB) {
-      console.log('Merge failed: One or both elements not found.');
+      console.error('Merge failed: One or both elements not found.');
       return null;
     }
 
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
 
-    // Generate the new element using the TransformerService
-    const prompt = `Given the following elements: ${elementA.name} ${elementA.emoji} and ${elementB.name} ${elementB.emoji}, combine them and create a new element with a Name and an Emoji. The new element should represent the combination of the two and should be in JSON format.`;
-    try {
-      const generatedText = await this.transformerService.generateChatCompletion(prompt);
-      
-      // Parse generated result (assuming format: "NewElementName NewElementEmoji")
-      const [newName, newEmoji] = generatedText.trim().split(' ');
+    const prompt = `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.
+Here are some examples to understand how elements are merged:
+- Fire + Water = Steam
+- Water + Earth = Plant
+- Earth + Fire = Lava
 
-      if (!newName || !newEmoji) {
-        console.error('Invalid result from Transformer model:', generatedText);
+Each element is represented in JSON format with "name" and "emoji" keys only. 
+
+For example if:
+Element A: {"name":"Fire","emoji":"🔥"}
+Element B: {"name":"Water","emoji":"💧"}
+The result would be: {"name":"Steam","emoji":"🌫️"}
+
+or if:
+Element A: {"name":"Water","emoji":"💧"}
+Element B: {"name":"Earth","emoji":"🪨"}
+The result would be: {"name":"Plant","emoji":"🌿"}
+
+This means that the new element merged from the following elements:
+Element A: {"name":"${elementA.name}","emoji":"${elementA.emoji}"}
+Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
+Should be the following:
+`;
+
+    try {
+      const output = await this.transformerService.generateChatCompletion(prompt, { max_new_tokens: 100, temperature: 0.7 });
+      const cleanOutput = output.replace(prompt, '').trim();
+      const extractedJsons = this.extractJsonsFromString(cleanOutput);
+
+      if (extractedJsons.length === 0) {
+        console.error('No valid JSON found in the output:', output);
         return null;
       }
 
-      const newElement: Element = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: newName,
-        emoji: newEmoji,
-      };
+      const newElement: Element = extractedJsons[0]; // Assuming the first JSON is the desired one
 
-      // Optionally add this new element to the global elements list
+      if (!newElement?.name || !newElement?.emoji) {
+        console.error('Invalid generated element:', newElement);
+        return null;
+      }
+
+      newElement.id = Math.random().toString(36).substr(2, 9); // Generate unique ID
       this.elements.push(newElement);
-      return newElement;
 
+      return newElement;
     } catch (error) {
-      console.error('Error generating new element:', error);
+      console.error('Error merging elements:', error);
       return null;
     }
+  }
+
+  extractJsonsFromString(text: string): any[] {
+    const jsonMatches = text.match(/\{[\s\S]*?\}/g); // Match all JSON-like blocks
+    if (!jsonMatches) {
+      return [];
+    }
+
+    const jsonObjects = jsonMatches.map((jsonString) => {
+      try {
+        return JSON.parse(jsonString);
+      } catch (error) {
+        console.warn('Failed to parse JSON:', jsonString, error);
+        return null;
+      }
+    });
+
+    return jsonObjects.filter((json) => json !== null); // Filter out invalid JSONs
   }
 }

@@ -18,9 +18,6 @@ export class AppComponent implements OnInit {
     try {
       await this.transformerService.loadModel();
       console.log('Transformer model loaded successfully.');
-
-      await this.transformerService.warmUpModel();
-      console.log('Model warmed up successfully.');
     } catch (error) {
       console.error('Error initializing Transformer model:', error);
     }
