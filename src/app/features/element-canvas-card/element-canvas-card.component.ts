@@ -30,7 +30,13 @@ export class ElementCanvasCardComponent implements AfterViewInit {
     const rect = this.cardRef.nativeElement.getBoundingClientRect();
     this.cardWidth = rect.width;
     this.cardHeight = rect.height;
-  }
+  
+    ElementEventService.onElementDroppedOn.subscribe(({ sourceElement, targetElement }) => {
+      if (sourceElement.canvasId === this.canvasElement.canvasId || targetElement.canvasId === this.canvasElement.canvasId) {
+        this.canvasElement.isBeingMerged = true;
+      }
+    });
+  }  
 
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent) {
@@ -77,12 +83,6 @@ export class ElementCanvasCardComponent implements AfterViewInit {
 
       if (this.activeTargetElement) {
         ElementEventService.onElementDroppedOn.emit({
-          sourceElement: this.canvasElement,
-          targetElement: this.activeTargetElement,
-        });
-
-        // Emit merging event
-        ElementEventService.onElementsBeingMerged.emit({
           sourceElement: this.canvasElement,
           targetElement: this.activeTargetElement,
         });
@@ -135,9 +135,9 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   
   private resetCollisionState() {
     if (this.activeTargetElement) {
-      this.activeTargetElement.isMarkedForMerge = false; // Unmark previous target
+      this.activeTargetElement.isMarkedForMerge = false;
     }
-    this.canvasElement.isMarkedForMerge = false; // Unmark dragged element
+    this.canvasElement.isMarkedForMerge = false;
     this.activeTargetElement = null;
   }
 }

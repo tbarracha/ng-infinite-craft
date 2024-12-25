@@ -35,6 +35,15 @@ module.exports = {
         'danger-secondary': 'var(--danger-secondary)',
         // Theme END
         },
+        keyframes: {
+          colorPulse: {
+            '0%, 100%': { backgroundColor: 'rgb(107 114 128)' }, // Gray 500
+            '50%': { backgroundColor: 'rgb(31 41 55)' }, // Gray 700
+          },
+        },
+        animation: {
+          colorPulse: 'colorPulse 1.5s ease-in-out infinite',
+        },
       },
     },
   plugins: [],

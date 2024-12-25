@@ -10,9 +10,7 @@ export class ElementEventService {
   
   public static readonly onElementDragged = new EventEmitter<CanvasElement>();
   public static readonly onElementDroppedOn = new EventEmitter<{ sourceElement: CanvasElement; targetElement: CanvasElement }>();
-  
-  public static readonly onElementsBeingMerged = new EventEmitter<{ sourceElement: CanvasElement; targetElement: CanvasElement }>();
-  public static readonly onElementMerged = new EventEmitter<{ elementA: CanvasElement; elementB: CanvasElement }>();
+  public static readonly onCanvasUpdated = new EventEmitter<CanvasElement[]>();
 
   public static readonly onElementListRefreshed = new EventEmitter<void>();
 

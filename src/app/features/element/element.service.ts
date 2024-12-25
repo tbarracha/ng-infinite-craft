@@ -11,7 +11,11 @@ export class ElementService {
   private canvasElements: CanvasElement[] = [];
   private isGenerating = false;
 
-  constructor(private transformerService: TransformerService) {}
+  constructor(private transformerService: TransformerService) {
+    ElementEventService.onElementDroppedOn.subscribe(async ({ sourceElement, targetElement }) => {
+      await this.mergeElements(sourceElement, targetElement);
+    });
+  }
 
   getIsGenerating(): boolean {
     return this.isGenerating;
@@ -20,99 +24,105 @@ export class ElementService {
   getAllElements(): Element[] {
     return this.elements;
   }
-  
+
   removeElements(elementIds: string[]): void {
-    // Remove elements from the list
     this.elements = this.elements.filter((element) => !elementIds.includes(element.id));
-  
-    // Re-add missing default elements
     DEFAULT_ELEMENTS.forEach((defaultElement) => {
       if (!this.elements.some((element) => element.id === defaultElement.id)) {
-        this.elements.push({ ...defaultElement }); // Add a copy of the default element
+        this.elements.push({ ...defaultElement });
       }
     });
-  
-    // Sort the elements by their ID
     this.elements.sort((a, b) => a.id.localeCompare(b.id));
-  
-    // Remove elements from the canvas
     this.canvasElements = this.canvasElements.filter(
       (canvasElement) => !elementIds.includes(canvasElement.element.id)
     );
 
     ElementEventService.onElementListRefreshed.emit();
+    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
   addPlacedElement(element: Element, x: number, y: number): void {
     const canvasElement: CanvasElement = {
-      canvasId: Math.random().toString(36).substr(2, 9), // Generate unique ID
+      canvasId: Math.random().toString(36).substr(2, 9),
       element,
       x,
       y,
     };
     this.canvasElements.push(canvasElement);
+    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
-  getPlacedElements(): CanvasElement[] {
+  getCanvasElements(): CanvasElement[] {
     return this.canvasElements;
   }
 
   clearPlacedElements(): void {
     this.canvasElements = [];
+    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
   removePlacedElement(canvasId: string): void {
     this.canvasElements = this.canvasElements.filter((el) => el.canvasId !== canvasId);
+    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
-  async mergeElements(idElementA: string, idElementB: string): Promise<Element | null> {
-    const elementA = this.elements.find((element) => element.id === idElementA);
-    const elementB = this.elements.find((element) => element.id === idElementB);
-  
+  async mergeElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<Element | null> {
+    const elementA = this.elements.find((element) => element.id === sourceElement.element.id);
+    const elementB = this.elements.find((element) => element.id === targetElement.element.id);
+
     if (!elementA || !elementB) {
-      console.error('Merge failed: One or both elements not found.');
-      return null;
+        console.error('Merge failed: One or both elements not found.');
+        return null;
     }
-  
+
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
-  
     const prompt = this.createMergePrompt(elementA, elementB);
-    this.isGenerating = true; // Start generation
-    let attempts = 0;
+    this.isGenerating = true;
+
     const maxAttempts = 5;
-  
+    let attempts = 0;
+
     while (attempts < maxAttempts) {
-      try {
-        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
-          max_new_tokens: 100,
-          temperature: 0.7,
-        });
-  
-        const extractedJsons = this.extractJsonsFromString(cleanOutput);
-  
-        if (extractedJsons.length > 0) {
-          const newElement: Element = extractedJsons[0]; // Assuming the first JSON is the desired one
-  
-          if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
-            newElement.id = this.elements.length.toString(); // Set id to the current length of elements array
-            this.elements.push(newElement);
-            this.isGenerating = false; // End generation
-            return newElement;
-          }
+        try {
+            const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+                max_new_tokens: 100,
+                temperature: 0.7,
+            });
+
+            const extractedJsons = this.extractJsonsFromString(cleanOutput);
+
+            if (extractedJsons.length > 0) {
+                const newElement: Element = extractedJsons[0];
+
+                if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
+                    newElement.id = this.elements.length.toString(); // Assign a unique ID
+                    this.elements.push(newElement);
+
+                    // Update canvas
+                    this.removePlacedElement(sourceElement.canvasId);
+                    this.removePlacedElement(targetElement.canvasId);
+                    const midX = (sourceElement.x + targetElement.x) / 2;
+                    const midY = (sourceElement.y + targetElement.y) / 2;
+                    this.addPlacedElement(newElement, midX, midY);
+
+                    this.isGenerating = false;
+                    console.log('Merge successful:', newElement);
+                    return newElement;
+                }
+            }
+
+            console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+        } catch (error) {
+            console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
         }
-  
-        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
-      } catch (error) {
-        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
-      }
-  
-      attempts++;
+
+        attempts++;
     }
-  
-    this.isGenerating = false; // End generation
+
+    this.isGenerating = false;
     console.error('Failed to generate a valid element after maximum retries.');
     return null;
-  }  
+  }
   
   createMergePrompt(elementA: Element, elementB: Element): string {
     return `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.

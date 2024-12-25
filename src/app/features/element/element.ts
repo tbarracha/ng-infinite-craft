@@ -10,6 +10,7 @@ export interface CanvasElement {
     x: number;
     y: number;
     isMarkedForMerge?: boolean;
+    isBeingMerged?: boolean;
 }
 
 export const DEFAULT_ELEMENTS: Element[] =  [

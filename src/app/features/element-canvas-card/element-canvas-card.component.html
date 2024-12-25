@@ -6,8 +6,9 @@
   [style.top.px]="canvasElement.y"
   [class.pointer-events-none]="elementService.getIsGenerating()"
   [ngClass]="{
-    'bg-gray-100': !canvasElement.isMarkedForMerge,
-    'bg-gray-500 text-white': canvasElement.isMarkedForMerge
+    'bg-gray-100': !canvasElement.isMarkedForMerge && !canvasElement.isBeingMerged,
+    'bg-gray-500 text-white': canvasElement.isMarkedForMerge && !canvasElement.isBeingMerged,
+    'bg-gray-700 text-white animate-pulse': canvasElement.isBeingMerged
   }"
 >
   <span>{{ canvasElement.element.emoji }}</span>
