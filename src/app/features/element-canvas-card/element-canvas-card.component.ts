@@ -2,9 +2,11 @@ import { Component, Input, HostListener, ElementRef, ViewChild, AfterViewInit } 
 import { CanvasElement } from '../element/element';
 import { ElementEventService } from '../element/element-event.service';
 import { ElementService } from '../element/element.service';
+import { NgClass } from '@angular/common';
 
 @Component({
   selector: 'app-element-canvas-card',
+  imports: [NgClass],
   templateUrl: './element-canvas-card.component.html',
   styleUrls: ['./element-canvas-card.component.scss'],
 })
@@ -20,6 +22,7 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   private offsetY: number = 0;
   private cardWidth: number = 0;
   private cardHeight: number = 0;
+  private activeTargetElement: CanvasElement | null = null;
 
   constructor(public elementService: ElementService) {}
 
@@ -53,6 +56,7 @@ export class ElementCanvasCardComponent implements AfterViewInit {
       this.canvasElement.x = newX;
       this.canvasElement.y = newY;
 
+      this.checkForCollisions();
       event.preventDefault();
     }
   }
@@ -71,7 +75,15 @@ export class ElementCanvasCardComponent implements AfterViewInit {
 
       this.cardRef.nativeElement.style.zIndex = '1';
 
-      this.checkForCollisions();
+      if (this.activeTargetElement) {
+        ElementEventService.onElementDroppedOn.emit({
+          sourceElement: this.canvasElement,
+          targetElement: this.activeTargetElement,
+        });
+        console.log(`Dropped on: ${this.activeTargetElement.element.name}`);
+      }
+
+      this.resetCollisionState();
     }
 
     this.isDragging = false;
@@ -79,30 +91,45 @@ export class ElementCanvasCardComponent implements AfterViewInit {
 
   private checkForCollisions() {
     const thisRect = this.cardRef.nativeElement.getBoundingClientRect();
-
+    let currentTarget: CanvasElement | null = null;
+  
     for (const element of this.allCanvasElements) {
       if (element.canvasId === this.canvasElement.canvasId) {
         continue; // Skip self
       }
-
+  
       const otherElement = document.querySelector(`[data-id="${element.canvasId}"]`) as HTMLElement;
       if (otherElement) {
         const otherRect = otherElement.getBoundingClientRect();
-
-        if (
+  
+        const isColliding =
           thisRect.left < otherRect.right &&
           thisRect.right > otherRect.left &&
           thisRect.top < otherRect.bottom &&
-          thisRect.bottom > otherRect.top
-        ) {
-          ElementEventService.onElementDroppedOn.emit({
-            sourceElement: this.canvasElement,
-            targetElement: element,
-          });
-          console.log(`Dropped on: ${element.element.name}`);
-          break;
+          thisRect.bottom > otherRect.top;
+  
+        if (isColliding) {
+          currentTarget = element;
+          break; // Stop on the first collision detected
         }
       }
     }
+  
+    if (currentTarget !== this.activeTargetElement) {
+      this.resetCollisionState(); // Reset previous target
+      this.activeTargetElement = currentTarget;
+  
+      if (this.activeTargetElement) {
+        this.activeTargetElement.isTargetedForMerge = true; // Mark as targeted
+        console.log(`Now targeting: ${this.activeTargetElement.element.name}`);
+      }
+    }
   }
+  
+  private resetCollisionState() {
+    if (this.activeTargetElement) {
+      this.activeTargetElement.isTargetedForMerge = false; // Unmark previous target
+    }
+    this.activeTargetElement = null;
+  }  
 }

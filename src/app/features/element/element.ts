@@ -9,7 +9,8 @@ export interface CanvasElement {
     element: Element;
     x: number;
     y: number;
-  }
+    isTargetedForMerge?: boolean;
+}  
 
 export const DEFAULT_ELEMENTS: Element[] =  [
     { id: '1', name: 'Water', emoji: '💧' },
