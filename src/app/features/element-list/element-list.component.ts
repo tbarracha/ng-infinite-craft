@@ -37,14 +37,18 @@ export class ElementListComponent implements OnInit {
   
     console.log('Selected elements:', Array.from(this.selectedElements));
   }
-  
 
   confirmDeletion(): void {
     console.log('Selected elements for deletion:', Array.from(this.selectedElements));
-    this.elementService.removeElements([...this.selectedElements]);
-    this.elements = this.elementService.getAllElements();
+
+    // Remove elements and get the updated list
+    const updatedElements = this.elementService.removeElements([...this.selectedElements]);
+
+    // Update the local elements list
+    this.elements = updatedElements;
     console.log('Elements after deletion:', this.elements);
-  
+
+    // Reset delete mode
     this.isDeleteMode = false;
     this.selectedElements.clear();
   }

@@ -10,6 +10,7 @@ export class ElementService {
   private elements: Element[] = DEFAULT_ELEMENTS;
   private canvasElements: CanvasElement[] = [];
   private isGenerating = false;
+  private nextElementId: number = 5;
 
   constructor(private transformerService: TransformerService) {
     ElementEventService.onElementDroppedOn.subscribe(async ({ sourceElement, targetElement }) => {
@@ -25,20 +26,36 @@ export class ElementService {
     return this.elements;
   }
 
-  removeElements(elementIds: string[]): void {
-    this.elements = this.elements.filter((element) => !elementIds.includes(element.id));
-    DEFAULT_ELEMENTS.forEach((defaultElement) => {
-      if (!this.elements.some((element) => element.id === defaultElement.id)) {
-        this.elements.push({ ...defaultElement });
-      }
-    });
-    this.elements.sort((a, b) => a.id.localeCompare(b.id));
-    this.canvasElements = this.canvasElements.filter(
-      (canvasElement) => !elementIds.includes(canvasElement.element.id)
+  removeElements(elementIdsToRemove: string[]): Element[] {
+    // 1) Start with default elements that are not in the removal list
+    const updatedElements: Element[] = DEFAULT_ELEMENTS.filter(
+        (defaultElement) => !elementIdsToRemove.includes(defaultElement.id)
     );
 
+    // 2) Add non-default elements that are not in the removal list
+    this.elements.forEach((element) => {
+        if (
+            !elementIdsToRemove.includes(element.id) &&
+            !DEFAULT_ELEMENTS.some((defaultEl) => defaultEl.id === element.id)
+        ) {
+            updatedElements.push({ ...element });
+        }
+    });
+
+    // 3) Update the elements array
+    this.elements = updatedElements;
+
+    // 4) Remove corresponding canvas elements
+    this.canvasElements = this.canvasElements.filter(
+        (canvasElement) => !elementIdsToRemove.includes(canvasElement.element.id)
+    );
+
+    // 5) Emit events to update the UI
     ElementEventService.onElementListRefreshed.emit();
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+
+    // 6) Return the updated elements list
+    return this.elements;
   }
 
   addPlacedElement(element: Element, x: number, y: number): void {
@@ -71,8 +88,8 @@ export class ElementService {
     const elementB = this.elements.find((element) => element.id === targetElement.element.id);
 
     if (!elementA || !elementB) {
-        console.error('Merge failed: One or both elements not found.');
-        return null;
+      console.error('Merge failed: One or both elements not found.');
+      return null;
     }
 
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
@@ -83,73 +100,73 @@ export class ElementService {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
-        try {
-            const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
-                max_new_tokens: 100,
-                temperature: 0.7,
-            });
+      try {
+        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+          max_new_tokens: 100,
+          temperature: 0.7,
+        });
 
-            const extractedJsons = this.extractJsonsFromString(cleanOutput);
+        const extractedJsons = this.extractJsonsFromString(cleanOutput);
 
-            if (extractedJsons.length > 0) {
-                const newElement: Element = extractedJsons[0];
+        if (extractedJsons.length > 0) {
+          const newElement: Element = extractedJsons[0];
 
-                if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
-                    newElement.id = this.elements.length.toString(); // Assign a unique ID
-                    this.elements.push(newElement);
+          if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
+            newElement.id = (this.nextElementId++).toString();
+            this.elements.push(newElement);
 
-                    // Update canvas
-                    this.removePlacedElement(sourceElement.canvasId);
-                    this.removePlacedElement(targetElement.canvasId);
-                    const midX = (sourceElement.x + targetElement.x) / 2;
-                    const midY = (sourceElement.y + targetElement.y) / 2;
-                    this.addPlacedElement(newElement, midX, midY);
+            // Update canvas
+            this.removePlacedElement(sourceElement.canvasId);
+            this.removePlacedElement(targetElement.canvasId);
+            const midX = (sourceElement.x + targetElement.x) / 2;
+            const midY = (sourceElement.y + targetElement.y) / 2;
+            this.addPlacedElement(newElement, midX, midY);
 
-                    this.isGenerating = false;
-                    console.log('Merge successful:', newElement);
-                    return newElement;
-                }
-            }
-
-            console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
-        } catch (error) {
-            console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+            this.isGenerating = false;
+            console.log('Merge successful:', newElement);
+            return newElement;
+          }
         }
 
-        attempts++;
+        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+      } catch (error) {
+        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+      }
+
+      attempts++;
     }
 
     this.isGenerating = false;
     console.error('Failed to generate a valid element after maximum retries.');
     return null;
   }
-  
+
   createMergePrompt(elementA: Element, elementB: Element): string {
     return `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.
   Here are some examples to understand how elements are merged:
   - Fire + Water = Steam
   - Water + Earth = Plant
   - Earth + Fire = Lava
-  
+
   Each element is represented in JSON format with "name" and "emoji" keys only. 
-  
+
   For example if:
   Element A: {"name":"Fire","emoji":"🔥"}
   Element B: {"name":"Water","emoji":"💧"}
   The result would be: {"name":"Steam","emoji":"🌫️"}
-  
+
   or if:
   Element A: {"name":"Water","emoji":"💧"}
   Element B: {"name":"Earth","emoji":"🪨"}
   The result would be: {"name":"Plant","emoji":"🌿"}
-  
+
   This means that the new element merged from the following elements:
   Element A: {"name":"${elementA.name}","emoji":"${elementA.emoji}"}
   Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
   Should be the following:
   `;
   }
-  
+
   isValidEmoji(emoji: string): boolean {
     const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base})/gu;
     const matches = emoji.match(emojiRegex);
