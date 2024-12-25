@@ -1,12 +1,56 @@
 <section class="h-full w-full flex flex-col gap-4 border-l">
+    <!-- Header -->
     <div class="h-12 w-full border-b flex items-center justify-center">
-        <h2 class="text-center font-semibold">Available Elements</h2>
+      <h2 class="text-center font-semibold">Available Elements</h2>
     </div>
-
+  
     <!-- Element List -->
     <div class="w-full p-2 flex-grow items-start overflow-y-auto">
-        @for (element of elements; track $index) {
+      @for (element of elements; track $index) {
+        @if (isDeleteMode) {
+          <div
+            class="transition gap-2 rounded-xl flex-shrink-0 inline-flex border-2 cursor-pointer"
+            [class.border-blue-500]="selectedElements.has(element.id)"
+            [class.border-opacity-100]="selectedElements.has(element.id)"
+            (click)="toggleSelection(element.id)">
+            <app-element-card class="pointer-events-none" [element]="element"></app-element-card>
+          </div>
+        } @else {
+          <div class="transition gap-2 rounded-xl flex-shrink-0 inline-flex border-2 border-transparent">
             <app-element-card [element]="element"></app-element-card>
+          </div>
         }
+      }
     </div>
-</section>
+  
+    <!-- Action Buttons -->
+    <div class="p-2 flex gap-2">
+      @if (isDeleteMode) {
+        <!-- Confirm Button -->
+        <button
+          class="flex-1 text-white p-2 rounded transition"
+          [class.bg-black]="selectedElements.size === 0"
+          [class.bg-red-500]="selectedElements.size > 0"
+          [class.hover:bg-red-600]="selectedElements.size > 0"
+          [class.hover:bg-gray-800]="selectedElements.size === 0"
+          [disabled]="selectedElements.size === 0"
+          (click)="confirmDeletion()">
+          Confirm
+        </button>
+  
+        <!-- Cancel Button -->
+        <button
+          class="flex-1 bg-gray-500 text-white p-2 rounded hover:bg-gray-600 transition"
+          (click)="toggleDeleteMode()">
+          Cancel
+        </button>
+      } @else {
+        <button 
+          class="w-full bg-gray-500 text-white p-2 rounded hover:bg-gray-600 transition"
+          (click)="toggleDeleteMode()">
+          Delete Elements
+        </button>
+      }
+    </div>
+  </section>
+  

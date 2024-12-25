@@ -1,6 +1,7 @@
 import { Component, Input, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CanvasElement } from '../element/element';
 import { ElementEventService } from '../element/element-event.service';
+import { ElementService } from '../element/element.service';
 
 @Component({
   selector: 'app-element-canvas-card',
@@ -20,6 +21,8 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   private cardWidth: number = 0;
   private cardHeight: number = 0;
 
+  constructor(public elementService: ElementService) {}
+
   ngAfterViewInit() {
     const rect = this.cardRef.nativeElement.getBoundingClientRect();
     this.cardWidth = rect.width;
@@ -28,14 +31,16 @@ export class ElementCanvasCardComponent implements AfterViewInit {
 
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent) {
+    if (this.elementService.getIsGenerating()) {
+      return; // Prevent interaction during element generation
+    }
+
     const rect = this.cardRef.nativeElement.getBoundingClientRect();
     this.offsetX = event.clientX - rect.left;
     this.offsetY = event.clientY - rect.top;
     this.isDragging = true;
 
-    // Raise z-index while dragging
-    this.cardRef.nativeElement.style.zIndex = '1000';
-
+    this.cardRef.nativeElement.style.zIndex = '1000'; // Raise z-index while dragging
     event.stopPropagation();
   }
 

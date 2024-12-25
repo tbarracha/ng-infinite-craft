@@ -8,12 +8,33 @@ import { TransformerService } from '../../core/services/transformer.service';
 export class ElementService {
   private elements: Element[] = DEFAULT_ELEMENTS;
   private activeElements: CanvasElement[] = [];
+  private isGenerating = false;
 
   constructor(private transformerService: TransformerService) {}
 
+  getIsGenerating(): boolean {
+    return this.isGenerating;
+  }
+
   getAllElements(): Element[] {
     return this.elements;
+  }removeElements(elementIds: string[]): void {
+    const defaultElementIds = new Set(DEFAULT_ELEMENTS.map((element) => element.id));
+  
+    // Ensure only non-default elements are removed
+    this.elements = this.elements.filter((element) => {
+      const isDefaultElement = defaultElementIds.has(element.id);
+      const isMarkedForRemoval = elementIds.includes(element.id);
+  
+      if (isDefaultElement && isMarkedForRemoval) {
+        console.warn(`Element "${element.name}" (${element.id}) is a default element and cannot be removed.`);
+        return true;
+      }
+  
+      return !isMarkedForRemoval;
+    });
   }
+  
 
   addPlacedElement(element: Element, x: number, y: number): void {
     const canvasElement: CanvasElement = {
@@ -40,15 +61,54 @@ export class ElementService {
   async mergeElements(idElementA: string, idElementB: string): Promise<Element | null> {
     const elementA = this.elements.find((element) => element.id === idElementA);
     const elementB = this.elements.find((element) => element.id === idElementB);
-  
+
     if (!elementA || !elementB) {
       console.error('Merge failed: One or both elements not found.');
       return null;
     }
-  
+
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
+
+    const prompt = this.createMergePrompt(elementA, elementB);
+    this.isGenerating = true; // Start generation
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      try {
+        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+          max_new_tokens: 100,
+          temperature: 0.7,
+        });
+
+        const extractedJsons = this.extractJsonsFromString(cleanOutput);
+
+        if (extractedJsons.length > 0) {
+          const newElement: Element = extractedJsons[0]; // Assuming the first JSON is the desired one
+
+          if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
+            newElement.id = Math.random().toString(36).substr(2, 9); // Generate unique ID
+            this.elements.push(newElement);
+            this.isGenerating = false; // End generation
+            return newElement;
+          }
+        }
+
+        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+      } catch (error) {
+        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+      }
+
+      attempts++;
+    }
+
+    this.isGenerating = false; // End generation
+    console.error('Failed to generate a valid element after maximum retries.');
+    return null;
+  }
   
-    const prompt = `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.
+  createMergePrompt(elementA: Element, elementB: Element): string {
+    return `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.
   Here are some examples to understand how elements are merged:
   - Fire + Water = Steam
   - Water + Earth = Plant
@@ -71,33 +131,13 @@ export class ElementService {
   Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
   Should be the following:
   `;
+  }
   
-    try {
-      const { prompt: usedPrompt, rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, { max_new_tokens: 100, temperature: 0.7 });
-  
-      const extractedJsons = this.extractJsonsFromString(cleanOutput);
-  
-      if (extractedJsons.length === 0) {
-        console.error('No valid JSON found in the output:', cleanOutput);
-        return null;
-      }
-  
-      const newElement: Element = extractedJsons[0]; // Assuming the first JSON is the desired one
-  
-      if (!newElement?.name || !newElement?.emoji) {
-        console.error('Invalid generated element:', newElement);
-        return null;
-      }
-  
-      newElement.id = Math.random().toString(36).substr(2, 9); // Generate unique ID
-      this.elements.push(newElement);
-  
-      return newElement;
-    } catch (error) {
-      console.error('Error merging elements:', error);
-      return null;
-    }
-  }  
+  isValidEmoji(emoji: string): boolean {
+    const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base})/gu;
+    const matches = emoji.match(emojiRegex);
+    return matches !== null && matches.length === 1;
+  }
 
   extractJsonsFromString(text: string): any[] {
     const jsonMatches = text.match(/\{[\s\S]*?\}/g); // Match all JSON-like blocks

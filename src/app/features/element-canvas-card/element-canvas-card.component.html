@@ -3,7 +3,9 @@
   [attr.data-id]="canvasElement.canvasId"
   class="absolute inline-flex bg-gray-100 p-2 rounded shadow-md cursor-grab select-none"
   [style.left.px]="canvasElement.x"
-  [style.top.px]="canvasElement.y">
+  [style.top.px]="canvasElement.y"
+  [class.pointer-events-none]="elementService.getIsGenerating()"
+  >
   <span>{{ canvasElement.element.emoji }}</span>
   <span>{{ canvasElement.element.name }}</span>
 </div>
