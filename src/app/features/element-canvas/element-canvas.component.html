@@ -1,11 +1,11 @@
 <div class="w-full h-full flex flex-col bg-gray-50">
   <div #canvas class="flex-grow">
-    @for (element of placedElements; track $index) {
+    @for (element of canvasElements; track $index) {
       <app-element-canvas-card
         [canvasElement]="element"
         [canvasWidth]="canvasWidth"
         [canvasHeight]="canvasHeight"
-        [allCanvasElements]="placedElements"
+        [allCanvasElements]="canvasElements"
         >
       </app-element-canvas-card>
     }

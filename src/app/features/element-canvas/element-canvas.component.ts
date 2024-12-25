@@ -11,7 +11,7 @@ import { ElementCanvasCardComponent } from '../element-canvas-card/element-canva
   imports: [ElementCanvasCardComponent],
 })
 export class ElementCanvasComponent implements OnInit, AfterViewInit {
-  placedElements: CanvasElement[] = [];
+  canvasElements: CanvasElement[] = [];
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLDivElement>;
   canvasWidth: number = 0;
   canvasHeight: number = 0;
@@ -32,11 +32,21 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     ElementEventService.onElementDroppedOn.subscribe(({ sourceElement, targetElement }) => {
       this.handleMerge(sourceElement, targetElement);
     });
+
+    ElementEventService.onElementListRefreshed.subscribe(() => {
+      this.refreshCanvas();
+    });
   }
 
   ngAfterViewInit() {
     this.updateCanvasBounds();
     window.addEventListener('resize', () => this.updateCanvasBounds());
+  }
+
+  refreshCanvas(): void {
+    // Logic to refresh the canvas based on the updated activeElements
+    this.canvasElements = this.elementService.getPlacedElements();
+    console.log('Canvas refreshed:', this.canvasElements);
   }
 
   updateCanvasBounds() {
@@ -47,7 +57,7 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
   }
 
   updatePlacedElements() {
-    this.placedElements = this.elementService.getPlacedElements();
+    this.canvasElements = this.elementService.getPlacedElements();
   }
 
   placeElementAtRandomPosition(element: Element) {

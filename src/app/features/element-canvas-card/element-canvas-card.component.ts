@@ -80,6 +80,13 @@ export class ElementCanvasCardComponent implements AfterViewInit {
           sourceElement: this.canvasElement,
           targetElement: this.activeTargetElement,
         });
+
+        // Emit merging event
+        ElementEventService.onElementsBeingMerged.emit({
+          sourceElement: this.canvasElement,
+          targetElement: this.activeTargetElement,
+        });
+
         console.log(`Dropped on: ${this.activeTargetElement.element.name}`);
       }
 
@@ -120,7 +127,7 @@ export class ElementCanvasCardComponent implements AfterViewInit {
       this.activeTargetElement = currentTarget;
   
       if (this.activeTargetElement) {
-        this.activeTargetElement.isTargetedForMerge = true; // Mark as targeted
+        this.activeTargetElement.isMarkedForMerge = true; // Mark as targeted
         console.log(`Now targeting: ${this.activeTargetElement.element.name}`);
       }
     }
@@ -128,8 +135,9 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   
   private resetCollisionState() {
     if (this.activeTargetElement) {
-      this.activeTargetElement.isTargetedForMerge = false; // Unmark previous target
+      this.activeTargetElement.isMarkedForMerge = false; // Unmark previous target
     }
+    this.canvasElement.isMarkedForMerge = false; // Unmark dragged element
     this.activeTargetElement = null;
-  }  
+  }
 }

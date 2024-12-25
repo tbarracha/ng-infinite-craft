@@ -1,15 +1,15 @@
 <div
   #card
   [attr.data-id]="canvasElement.canvasId"
-  class="absolute inline-flex bg-gray-100 p-2 rounded shadow-md cursor-grab select-none"
+  class="absolute inline-flex p-2 rounded shadow-md cursor-grab select-none"
   [style.left.px]="canvasElement.x"
   [style.top.px]="canvasElement.y"
   [class.pointer-events-none]="elementService.getIsGenerating()"
   [ngClass]="{
-    'bg-gray-100': !canvasElement.isTargetedForMerge,
-    'bg-gray-500 text-white': canvasElement.isTargetedForMerge
+    'bg-gray-100': !canvasElement.isMarkedForMerge,
+    'bg-gray-500 text-white': canvasElement.isMarkedForMerge
   }"
-  >
+>
   <span>{{ canvasElement.element.emoji }}</span>
   <span>{{ canvasElement.element.name }}</span>
 </div>

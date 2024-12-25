@@ -24,3 +24,7 @@
 - position : (x, y)
 
 - activeElements : Elements []
+
+## This cannot be generated:
+{"name":"Burning Water","emoji":" água 🔥"} -> two names in emoji
+{"name":"Aeroplane lava","emoji":"💥"}

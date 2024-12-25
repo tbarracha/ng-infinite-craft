@@ -34,11 +34,17 @@ export class ElementListComponent implements OnInit {
     } else {
       this.selectedElements.add(elementId);
     }
+  
+    console.log('Selected elements:', Array.from(this.selectedElements));
   }
+  
 
   confirmDeletion(): void {
+    console.log('Selected elements for deletion:', Array.from(this.selectedElements));
     this.elementService.removeElements([...this.selectedElements]);
     this.elements = this.elementService.getAllElements();
+    console.log('Elements after deletion:', this.elements);
+  
     this.isDeleteMode = false;
     this.selectedElements.clear();
   }
