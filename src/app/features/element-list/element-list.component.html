@@ -1,8 +1,10 @@
-<section class="h-full w-full flex flex-col p-2 gap-4 border-l">
-    <h2 class="text-center">Available Elements</h2>
+<section class="h-full w-full flex flex-col gap-4 border-l">
+    <div class="h-12 w-full border-b flex items-center justify-center">
+        <h2 class="text-center font-semibold">Available Elements</h2>
+    </div>
 
     <!-- Element List -->
-    <div class="w-full flex-grow items-start overflow-y-auto">
+    <div class="w-full p-2 flex-grow items-start overflow-y-auto">
         @for (element of elements; track $index) {
             <app-element-card [element]="element"></app-element-card>
         }
