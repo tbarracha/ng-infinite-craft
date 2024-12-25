@@ -1,13 +1,14 @@
 <div class="w-full h-full flex flex-col bg-gray-50 border">
   <div #canvas class="flex-grow">
-    <app-element-canvas-card
-      *ngFor="let placed of placedElements"
-      [canvasElement]="placed"
-      [canvasWidth]="canvasWidth"
-      [canvasHeight]="canvasHeight"
-      [allCanvasElements]="placedElements"
-      >
-    </app-element-canvas-card>
+    @for (element of placedElements; track $index) {
+      <app-element-canvas-card
+        [canvasElement]="element"
+        [canvasWidth]="canvasWidth"
+        [canvasHeight]="canvasHeight"
+        [allCanvasElements]="placedElements"
+        >
+      </app-element-canvas-card>
+    }
   </div>
 
   <!-- Button Section -->

@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
-import { pipeline, TextStreamer } from '@huggingface/transformers';
+import { EventService } from './event.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class TransformerService {
-  private textGenerator: any;
+  private worker: Worker | null = null;
+
   readonly modelIds = {
     qwen_25_coder_15b: 'onnx-community/Qwen2.5-Coder-1.5B-Instruct',  // best one yet (still creates some gibberish & needs cleaning)
     llama_32_1b: 'onnx-community/Llama-3.2-1B-Instruct',              // kinda works (creates some gibberish)
@@ -14,88 +15,98 @@ export class TransformerService {
     exaone_35_24b: 'onnx-community/EXAONE-3.5-2.4B-Instruct',         // doesn't work (doesn't load)
   };
 
-  constructor() {}
+  constructor(private eventService: EventService) {
+    if (typeof Worker !== 'undefined') {
+      this.worker = new Worker(new URL('../worker/llm-loader.worker', import.meta.url));
+    } else {
+      console.error('Web Workers are not supported in this environment.');
+    }
+  }
 
   private printTitle(title: string): void {
     console.log(`\n${'-'.repeat(40)}\n> ${title}\n${'-'.repeat(40)}`);
   }
 
-  private async checkWebGPUSupport(): Promise<boolean> {
-    this.printTitle('CHECKING WEBGPU SUPPORT');
-    try {
-        const adapter = await navigator.gpu.requestAdapter();
-        if (adapter) {
-            console.log('WebGPU Support: SUPPORTED');
-            console.log('Adapter Details:', adapter);
-            return true;
+  loadModel(modelId: string = this.modelIds.qwen_25_coder_15b): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.worker) {
+        const error = 'Web Worker is not initialized.';
+        this.eventService.onError.emit(error);
+        reject(error);
+        return;
+      }
+
+      this.eventService.onLoadingStateChange.emit(true); // Emit loading start
+
+      this.worker.onmessage = (event: MessageEvent) => {
+        const { success, error } = event.data;
+
+        if (success) {
+          console.log(`Model ${modelId} loaded successfully.`);
+          this.eventService.onLoadingStateChange.emit(false); // Emit loading end
+          resolve();
         } else {
-            console.warn('WebGPU Support: NOT SUPPORTED');
-            return false;
+          console.error('Failed to load the model:', error);
+          this.eventService.onError.emit(error); // Emit error
+          this.eventService.onLoadingStateChange.emit(false); // Emit loading end
+          reject(error);
         }
-    } catch (error) {
-        console.error('WebGPU Support Check: ERROR', error);
-        return false;
-    }
+      };
+
+      this.worker.onerror = (error) => {
+        console.error('Web Worker encountered an error:', error);
+        const errorMessage = error.message || 'Unknown error occurred in Web Worker.';
+        this.eventService.onError.emit(errorMessage); // Emit error
+        this.eventService.onLoadingStateChange.emit(false); // Emit loading end
+        reject(errorMessage);
+      };
+
+      this.worker.postMessage({ action: 'loadModel', modelId });
+    });
   }
 
-  async loadModel(modelId: string = this.modelIds.qwen_25_coder_15b): Promise<void> {
-    this.printTitle('LOADING MODEL');
-    const webGPUSupported = await this.checkWebGPUSupport();
-    if (!webGPUSupported) {
-      console.error('WebGPU is not supported on this device.');
-      throw new Error('WebGPU not supported.');
-    }
-
-    try {
-      console.log(`Loading model: ${modelId} with WebGPU...`);
-      this.textGenerator = await pipeline('text-generation', modelId, {
-        device: 'webgpu',
-        dtype: 'q4f16',
-      });
-      console.log(`Model ${modelId} loaded successfully using WebGPU.`);
-    } catch (error) {
-      console.error('Failed to load model with WebGPU:', error);
-      throw error;
-    }
-  }
-
-  // returning lots of things here, but only using rawOutput and cleanOutput
-  async generateChatCompletion(
+  generateChatCompletion(
     prompt: string,
     options: { max_new_tokens?: number; temperature?: number } = { max_new_tokens: 512, temperature: 0.7 }
-  ): Promise<{ prompt: string; options: { max_new_tokens?: number; temperature?: number }, rawOutput: string; cleanOutput: string; }> {
-    this.printTitle('GENERATING CHAT COMPLETION');
-  
-    if (!this.textGenerator) {
-      throw new Error('Model is not loaded.');
-    }
-  
-    try {
-      const result = await this.textGenerator(prompt, options);
-  
-      if (!result || result.length === 0 || !result[0]?.generated_text) {
-        throw new Error('Model did not return any output.');
+  ): Promise<{ prompt: string; options: { max_new_tokens?: number; temperature?: number }; rawOutput: string; cleanOutput: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.worker) {
+        reject('Web Worker is not initialized.');
+        return;
       }
-  
-      const rawOutput = result[0]?.generated_text.trim();
-      const cleanOutput = rawOutput.replace(prompt, '').trim();
-  
-      console.log('Model raw output:', rawOutput);
-      console.log('Cleaned model output:', cleanOutput);
-  
-      return {
-        prompt,
-        options,
-        rawOutput,
-        cleanOutput,
+
+      this.printTitle('GENERATING CHAT COMPLETION');
+
+      this.worker.onmessage = (event: MessageEvent) => {
+        const { success, result, error } = event.data;
+
+        if (success) {
+          const rawOutput = result[0]?.generated_text.trim();
+          const cleanOutput = rawOutput.replace(prompt, '').trim();
+
+          console.log('Model raw output:', rawOutput);
+          console.log('Cleaned model output:', cleanOutput);
+
+          resolve({
+            prompt,
+            options,
+            rawOutput,
+            cleanOutput,
+          });
+        } else {
+          console.error('Failed to generate chat completion:', error);
+          reject(error);
+        }
       };
-    } catch (error) {
-      console.error('Error during text generation:', error);
-      throw error;
-    }
+
+      this.worker.onerror = (error) => {
+        console.error('Web Worker encountered an error:', error);
+        reject(error.message);
+      };
+
+      this.worker.postMessage({ action: 'generate', prompt, options });
+    });
   }
-  
-  
 
   async warmUpModel(): Promise<void> {
     this.printTitle('WARMING UP MODEL');

@@ -2,14 +2,13 @@ import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angula
 import { Element, CanvasElement } from '../element/element';
 import { ElementService } from '../element/element.service';
 import { ElementEventService } from '../element/element-event.service';
-import { NgFor } from '@angular/common';
 import { ElementCanvasCardComponent } from '../element-canvas-card/element-canvas-card.component';
 
 @Component({
   selector: 'app-element-canvas',
   templateUrl: './element-canvas.component.html',
   styleUrls: ['./element-canvas.component.scss'],
-  imports: [NgFor, ElementCanvasCardComponent],
+  imports: [ElementCanvasCardComponent],
 })
 export class ElementCanvasComponent implements OnInit, AfterViewInit {
   placedElements: CanvasElement[] = [];

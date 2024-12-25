@@ -11,5 +11,8 @@ export class EventService {
   public readonly onUserLogin : EventEmitter<any> = new EventEmitter<any>();
   public readonly onUserLogout : EventEmitter<any> = new EventEmitter<any>();
 
+  public readonly onLoadingStateChange: EventEmitter<boolean> = new EventEmitter<boolean>();
+  public readonly onError: EventEmitter<string> = new EventEmitter<string>()
+
   constructor() { }
 }
