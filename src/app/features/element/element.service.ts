@@ -11,6 +11,8 @@ import { VisualEffectsService } from '../../core/services/visual-effects.service
 export class ElementService {
   private elements: List<Element> = new List<Element>();
   private canvasElements: List<CanvasElement> = new List<CanvasElement>();
+  private mergeRecipes: Map<string, Element> = new Map();
+
   private isGenerating = false;
   private nextElementId: number = 5;
   private currentState: 'Idle' | 'Updating' | 'Completed' = 'Idle';
@@ -159,8 +161,8 @@ export class ElementService {
 
   async mergeCanvasElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<CanvasElement | null> {
     if (this.currentState !== 'Idle') {
-      console.warn('Cannot merge elements while another operation is in progress.');
-      return null;
+        console.warn('Cannot merge elements while another operation is in progress.');
+        return null;
     }
 
     this.setState('Updating');
@@ -169,12 +171,23 @@ export class ElementService {
     const elementB = this.elements.find(element => element.id === targetElement.element.id);
 
     if (!elementA || !elementB) {
-      console.error('Merge failed: One or both elements not found.');
-      this.setState('Idle');
-      return null;
+        console.error('Merge failed: One or both elements not found.');
+        this.setState('Idle');
+        return null;
     }
 
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
+
+    // Check if the merge already exists in the dictionary
+    const mergeKey = this.generateMergeKey(elementA, elementB);
+    if (this.mergeRecipes.has(mergeKey)) {
+        const existingElement = this.mergeRecipes.get(mergeKey)!;
+
+        console.log('Merge found in recipes:', existingElement);
+        return this.mergeSuccess(existingElement, sourceElement, targetElement);
+    }
+
+    // Generate a new merge via the LLM if not found
     const prompt = this.createMergePrompt(elementA, elementB);
     this.isGenerating = true;
 
@@ -182,67 +195,72 @@ export class ElementService {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
-      try {
-        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
-          max_new_tokens: 100,
-          temperature: 0.7,
-        });
+        try {
+            const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+                max_new_tokens: 100,
+                temperature: 0.7,
+            });
 
-        const extractedJsons = this.extractJsonsFromString(cleanOutput);
+            const extractedJsons = this.extractJsonsFromString(cleanOutput);
 
-        if (extractedJsons.length > 0) {
-          const newElement: Element = extractedJsons[0];
+            if (extractedJsons.length > 0) {
+                const newElement: Element = extractedJsons[0];
 
-          if (this.isValidJson(newElement, elementA, elementB)) {
+                if (this.isValidJson(newElement, elementA, elementB)) {
+                    // Add the recipe to the dictionary
+                    this.mergeRecipes.set(mergeKey, newElement);
 
-            newElement.id = (this.nextElementId++).toString();
-            this.elements.add(newElement);
+                    return this.mergeSuccess(newElement, sourceElement, targetElement);
+                }
+            }
 
-            // Remove only the merged elements from canvasElements
-            this.canvasElements.removeAll(canvasEl =>
-              canvasEl.canvasId === sourceElement.canvasId ||
-              canvasEl.canvasId === targetElement.canvasId
-            );
-
-            // Create and place the new canvas element
-            const midX = (sourceElement.x + targetElement.x) / 2;
-            const midY = (sourceElement.y + targetElement.y) / 2;
-            const newCanvasElement: CanvasElement = {
-              canvasId: Math.random().toString(36).substr(2, 9),
-              element: newElement,
-              x: midX,
-              y: midY,
-            };
-            this.canvasElements.add(newCanvasElement);
-
-            // Trigger visual and sound effects
-            const offset: number = 32;
-            this.visualEffectService.playConfettiAtPosition(midX + offset, midY - offset);
-            this.visualEffectService.playSuccess();
-
-            // Emit events
-            ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
-            ElementEventService.onElementListRefreshed.emit();
-            ElementEventService.onElementMerged.emit(newCanvasElement);
-
-            this.isGenerating = false;
-            this.setState('Completed');
-            console.log('Merge successful:', newCanvasElement);
-            return newCanvasElement;
-          }
+            console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+        } catch (error) {
+            console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
         }
 
-        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
-      } catch (error) {
-        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
-      }
-
-      attempts++;
+        attempts++;
     }
 
     console.error('Failed to generate a valid element after maximum retries.');
     this.mergeFailed(sourceElement, targetElement);
     return null;
+  }
+
+  private mergeSuccess(newElement: Element, sourceElement: CanvasElement, targetElement: CanvasElement): CanvasElement {
+    newElement.id = (this.nextElementId++).toString();
+    this.elements.add(newElement);
+
+    // Remove only the merged elements from canvasElements
+    this.canvasElements.removeAll(canvasEl =>
+        canvasEl.canvasId === sourceElement.canvasId || canvasEl.canvasId === targetElement.canvasId
+    );
+
+    // Create and place the new canvas element
+    const midX = (sourceElement.x + targetElement.x) / 2;
+    const midY = (sourceElement.y + targetElement.y) / 2;
+    const newCanvasElement: CanvasElement = {
+        canvasId: Math.random().toString(36).substr(2, 9),
+        element: newElement,
+        x: midX,
+        y: midY,
+    };
+    this.canvasElements.add(newCanvasElement);
+
+    // Trigger visual and sound effects
+    const offset: number = 32;
+    this.visualEffectService.playConfettiAtPosition(midX + offset, midY - offset);
+    this.visualEffectService.playSuccess();
+
+    // Emit events
+    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+    ElementEventService.onElementListRefreshed.emit();
+    ElementEventService.onElementMerged.emit(newCanvasElement);
+
+    this.isGenerating = false;
+    this.setState('Completed');
+    console.log('Merge successful:', newCanvasElement);
+    return newCanvasElement;
   }
 
   mergeFailed(sourceElement: CanvasElement, targetElement: CanvasElement) {
@@ -362,5 +380,10 @@ Element A: {"name":"${elementA.name}","emoji":"${elementA.emoji}"}
 Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
 Should be the following:
 `;
+  }
+
+  private generateMergeKey(elementA: Element, elementB: Element): string {
+    const names = [elementA.name, elementB.name].sort(); // Alphabetical order
+    return `${names[0]}+${names[1]}`;
   }
 }
