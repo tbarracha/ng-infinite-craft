@@ -5,13 +5,16 @@ import confetti from 'canvas-confetti';
   providedIn: 'root',
 })
 export class VisualEffectsService {
+  allowSFX: boolean = true;
+
   private confettiCanvas: HTMLCanvasElement | null = null;
-  private audio: HTMLAudioElement;
+  private audioPaths = {
+    mergeSuccess: 'audio/infinitiy_craft_merge_sucess.ogg',
+    mergeFailure: 'audio/infinitiy_craft_merge_failure.ogg',
+  };
 
   constructor() {
     this.createConfettiCanvas();
-    this.audio = new Audio('/merge-sound.mp3');
-    this.audio.load();
   }
 
   private createConfettiCanvas() {
@@ -52,26 +55,29 @@ export class VisualEffectsService {
         console.warn('Confetti canvas not initialized.');
         return;
       }
-  
-      // Normalize coordinates to percentages for canvas-confetti
+
       const normalizedX = x / window.innerWidth;
       const normalizedY = y / window.innerHeight;
-  
+
       confetti.create(this.confettiCanvas, { resize: true })({
-        particleCount: 25, // Smaller particle count
-        spread: 360, // Smaller spread for a tighter burst
-        startVelocity: 10, // Faster particles
-        origin: { x: normalizedX, y: normalizedY }, // Burst origin
-        colors: ['#FF4500', '#008080', '#FFD700'], // Customize colors
+        particleCount: 25,
+        spread: 360,
+        startVelocity: 10,
+        origin: { x: normalizedX, y: normalizedY },
+        colors: ['#FF4500', '#008080', '#FFD700'],
       });
-  
+
       console.log(`Confetti burst at position (${x}, ${y}) with smaller size`);
     } catch (error) {
       console.error('Error playing confetti:', error);
     }
   }
 
-  playSound() {
+  playAudio(audioPath: string) {
+    if (!this.allowSFX) {
+      return;
+    }
+
     try {
       const audioContext = new AudioContext();
       const source = audioContext.createBufferSource();
@@ -79,19 +85,27 @@ export class VisualEffectsService {
       // Randomize pitch between 0.95 and 1.15
       const pitch = Math.random() * (1.15 - 0.95) + 0.95;
 
-      // Load audio file
-      fetch('/merge-sound.mp3')
-        .then(response => response.arrayBuffer())
-        .then(data => audioContext.decodeAudioData(data))
-        .then(buffer => {
+      // Load audio file dynamically
+      fetch(audioPath)
+        .then((response) => response.arrayBuffer())
+        .then((data) => audioContext.decodeAudioData(data))
+        .then((buffer) => {
           source.buffer = buffer;
           source.playbackRate.value = pitch;
           source.connect(audioContext.destination);
           source.start(0);
         })
-        .catch(error => console.error('Error playing sound:', error));
+        .catch((error) => console.error('Error playing sound:', error));
     } catch (error) {
       console.error('Error with audio playback:', error);
     }
+  }
+
+  playSuccess() {
+    this.playAudio(this.audioPaths.mergeSuccess);
+  }
+
+  playFailure() {
+    this.playAudio(this.audioPaths.mergeFailure);
   }
 }

@@ -33,8 +33,9 @@ merge is the result of the two names:
 - {"name":"Aeroplane lava","emoji":"💥"}
 - {"name":"Aeroplane+lava","emoji":"💥"}
 
-## Credits
-Sound Effect by <a href="https://pixabay.com/users/rasoolasaad-47313572/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=269266">Rasool Asaad</a> from <a href="https://pixabay.com/sound-effects//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=269266">Pixabay</a>
+emoji being a 'word + emoji'"
+- {"name":"Wet Air","emoji":" Spray! 🌟"}
+
 
 ## TODO:
 - [x] Check if emoji already exists
@@ -42,3 +43,9 @@ Sound Effect by <a href="https://pixabay.com/users/rasoolasaad-47313572/?utm_sou
 - [ ] Confetti on element merged
 - [ ] Delete targeted canvas elements
 - [ ] Add darkmode
+
+
+## Credits
+Merge Sound Effect by <a href="https://pixabay.com/users/rasoolasaad-47313572/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=269266">Rasool Asaad</a> from <a href="https://pixabay.com/sound-effects//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=269266">Pixabay</a>
+
+Error Sound Effect by <a href="https://pixabay.com/users/voicebosch-30143949/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=182475">Otto</a> from <a href="https://pixabay.com/sound-effects//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=182475">Pixabay</a>

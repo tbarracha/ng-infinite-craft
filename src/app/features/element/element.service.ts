@@ -219,10 +219,10 @@ export class ElementService {
               y: midY,
             };
             this.canvasElements.add(newCanvasElement);
-            
+
             // Trigger visual and sound effects
             this.visualEffectService.playConfettiAtPosition(midX, midY);
-            this.visualEffectService.playSound();
+            this.visualEffectService.playSuccess();
 
             // Emit events
             ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
@@ -244,10 +244,21 @@ export class ElementService {
       attempts++;
     }
 
+    console.error('Failed to generate a valid element after maximum retries.');
+    this.mergeFailed(sourceElement, targetElement);
+    return null;
+  }
+
+  mergeFailed(sourceElement: CanvasElement, targetElement: CanvasElement) {
+    this.visualEffectService.playFailure();
     this.isGenerating = false;
     this.setState('Idle');
-    console.error('Failed to generate a valid element after maximum retries.');
-    return null;
+
+    sourceElement.isBeingMerged = false;
+    sourceElement.isMarkedForMerge = false;
+
+    targetElement.isBeingMerged = false;
+    targetElement.isMarkedForMerge = false;
   }
 
   isValidJson(json: Element, elementA: Element, elementB: Element): boolean {
@@ -264,11 +275,14 @@ export class ElementService {
 
     // Check for concatenated names
     const invalidNames = [
+        `${elementA.name}${elementB.name}`,
         `${elementA.name} ${elementB.name}`,
         `${elementA.name}+${elementB.name}`,
+        `${elementB.name}${elementA.name}`,
         `${elementB.name} ${elementA.name}`,
-        `${elementB.name}+${elementA.name}`
+        `${elementB.name}+${elementA.name}`,
     ];
+
     if (invalidNames.includes(json.name)) {
         console.warn('Invalid merged name:', json.name);
         return false;
@@ -284,6 +298,20 @@ export class ElementService {
     // Check if the name already exists in the elements list
     if (this.elements.toArray().some(element => element.name === json.name)) {
         console.warn('Duplicate element name detected:', json.name);
+        return false;
+    }
+
+    // Check if the emoji is a combination of text and emoji
+    const textAndEmojiRegex = /^[^\p{Emoji}]+[\p{Emoji}].*$/gu;
+    if (textAndEmojiRegex.test(json.emoji)) {
+        console.warn('Emoji contains text and emoji:', json.emoji);
+        return false;
+    }
+
+    // Check if the emoji includes two or more words with emojis
+    const multipleNamesInEmoji = /\b\w+\s+\p{Emoji}/gu;
+    if (multipleNamesInEmoji.test(json.emoji)) {
+        console.warn('Emoji contains multiple names with emojis:', json.emoji);
         return false;
     }
 
