@@ -23,7 +23,6 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
 
     ElementEventService.onCanvasUpdated.subscribe((updatedCanvasElements) => {
       this.canvasElements = updatedCanvasElements;
-      console.log('Canvas refreshed:', this.canvasElements);
     });
 
     ElementEventService.onElementClicked.subscribe((element) => {
@@ -42,7 +41,6 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
 
   private loadCanvasElements(): void {
     this.canvasElements = this.elementService.getCanvasElements();
-    console.log('Canvas elements loaded:', this.canvasElements);
   }
 
   private updateCanvasBounds(): void {
@@ -55,37 +53,21 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     const rect = canvas.getBoundingClientRect();
     this.canvasWidth = rect.width;
     this.canvasHeight = rect.height;
-    //console.log(`Canvas bounds updated: ${this.canvasWidth}x${this.canvasHeight}`);
   }
 
   private placeElementAtRandomPosition(element: Element): void {
-    if (this.elementService.getIsGenerating()) {
-      console.warn('Element placement is blocked during ongoing operations.');
-      return;
-    }
-
     const x = Math.random() * (this.canvasWidth - 50);
     const y = Math.random() * (this.canvasHeight - 50);
     this.elementService.addPlacedElement(element, x, y);
   }
 
   private handleElementDrop(element: Element, x: number, y: number): void {
-    if (this.elementService.getIsGenerating()) {
-      console.warn('Element drop is blocked during ongoing operations.');
-      return;
-    }
-
     const constrainedX = Math.max(0, Math.min(this.canvasWidth - 50, x));
     const constrainedY = Math.max(0, Math.min(this.canvasHeight - 50, y));
     this.elementService.addPlacedElement(element, constrainedX, constrainedY);
   }
 
   clearCanvas(): void {
-    if (this.elementService.getIsGenerating()) {
-      console.warn('Canvas clearing is blocked during ongoing operations.');
-      return;
-    }
-
     this.elementService.clearCanvasElements();
     console.log('Canvas cleared.');
   }

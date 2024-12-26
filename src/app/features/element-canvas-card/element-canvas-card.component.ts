@@ -44,11 +44,12 @@ export class ElementCanvasCardComponent implements AfterViewInit {
 
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent) {
-    this.refreshCardSize();
-
-    if (this.elementService.getIsGenerating()) {
-      return; // Prevent interaction during element generation
+    // Prevent interaction during element generation
+    if (this.canvasElement.isBeingMerged || this.canvasElement.isMarkedForMerge) {
+      return;
     }
+
+    this.refreshCardSize();
 
     const rect = this.cardRef.nativeElement.getBoundingClientRect();
     this.offsetX = event.clientX - rect.left;
@@ -65,7 +66,6 @@ export class ElementCanvasCardComponent implements AfterViewInit {
       const newX = event.clientX - this.offsetX;
       const newY = event.clientY - this.offsetY;
 
-      // Clamp newX and newY within canvas boundaries
       this.canvasElement.x = Math.max(
         0,
         Math.min(this.canvasWidth - this.cardWidth, newX)
@@ -74,7 +74,7 @@ export class ElementCanvasCardComponent implements AfterViewInit {
         0,
         Math.min(this.canvasHeight - this.cardHeight, newY)
       );
-
+      
       this.checkForCollisions();
       event.preventDefault();
     }
@@ -110,6 +110,10 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   }
 
   private checkForCollisions() {
+    if (this.elementService.getIsGenerating()) {
+      return;
+    }
+
     const thisRect = this.cardRef.nativeElement.getBoundingClientRect();
     let currentTarget: CanvasElement | null = null;
   
@@ -136,12 +140,11 @@ export class ElementCanvasCardComponent implements AfterViewInit {
     }
   
     if (currentTarget !== this.activeTargetElement) {
-      this.resetCollisionState(); // Reset previous target
+      this.resetCollisionState();
       this.activeTargetElement = currentTarget;
   
       if (this.activeTargetElement) {
-        this.activeTargetElement.isMarkedForMerge = true; // Mark as targeted
-        console.log(`Now targeting: ${this.activeTargetElement.element.name}`);
+        this.activeTargetElement.isMarkedForMerge = true;
       }
     }
   }

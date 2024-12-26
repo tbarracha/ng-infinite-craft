@@ -120,11 +120,6 @@ export class ElementService {
   }
 
   addPlacedElement(element: Element, x: number, y: number): void {
-    if (this.currentState !== 'Idle') {
-      console.warn('Cannot add elements while another operation is in progress.');
-      return;
-    }
-
     const canvasElement: CanvasElement = {
       canvasId: Math.random().toString(36).substr(2, 9),
       element,
@@ -140,7 +135,7 @@ export class ElementService {
   }
 
   clearCanvasElements(): void {
-    if (this.currentState !== 'Idle') {
+    if (this.currentState !== 'Idle' || this.isGenerating) {
       console.warn('Cannot clear elements while another operation is in progress.');
       return;
     }
@@ -221,7 +216,8 @@ export class ElementService {
             this.canvasElements.add(newCanvasElement);
 
             // Trigger visual and sound effects
-            this.visualEffectService.playConfettiAtPosition(midX, midY);
+            const offset: number = 32;
+            this.visualEffectService.playConfettiAtPosition(midX + offset, midY - offset);
             this.visualEffectService.playSuccess();
 
             // Emit events

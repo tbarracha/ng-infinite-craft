@@ -19,10 +19,8 @@ export class ElementListComponent implements OnInit {
   constructor(private elementService: ElementService) {}
 
   ngOnInit(): void {
-    // Initialize the element list from the service
     this.loadElements();
 
-    // Subscribe to element list refresh events
     ElementEventService.onElementListRefreshed.subscribe(() => {
       this.loadElements();
     });
@@ -55,14 +53,8 @@ export class ElementListComponent implements OnInit {
     }
 
     try {
-      console.log('Deleting selected elements:', this.selectedElements);
-
-      // Use the service method to remove elements asynchronously
       this.elements = await this.elementService.removeElements([...this.selectedElements]);
 
-      console.log('Selected elements deleted. Updated elements:', this.elements);
-
-      // Reset delete mode
       this.isDeleteMode = false;
       this.selectedElements.clear();
     } catch (error) {
@@ -72,10 +64,7 @@ export class ElementListComponent implements OnInit {
 
   async deleteAll(): Promise<void> {
     try {
-      // Call the service method to clear all elements asynchronously
       this.elements = await this.elementService.removeAllElements();
-
-      console.log('All elements deleted. Updated elements:', this.elements);
 
       // Reset delete mode
       this.isDeleteMode = false;
