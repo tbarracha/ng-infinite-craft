@@ -11,11 +11,23 @@ export class ElementService {
   private canvasElements: CanvasElement[] = [];
   private isGenerating = false;
   private nextElementId: number = 5;
+  private currentState: 'Idle' | 'Updating' | 'Completed' = 'Idle';
 
   constructor(private transformerService: TransformerService) {
     ElementEventService.onElementDroppedOn.subscribe(async ({ sourceElement, targetElement }) => {
       await this.mergeElements(sourceElement, targetElement);
     });
+  }
+
+  private setState(state: 'Idle' | 'Updating' | 'Completed'): void {
+    console.log(`Transitioning to state: ${state}`);
+    this.currentState = state;
+
+    if (state === 'Completed') {
+      setTimeout(() => {
+        this.setState('Idle');
+      }, 50);
+    }
   }
 
   getIsGenerating(): boolean {
@@ -26,39 +38,81 @@ export class ElementService {
     return this.elements;
   }
 
-  removeElements(elementIdsToRemove: string[]): Element[] {
-    // 1) Start with default elements that are not in the removal list
-    const updatedElements: Element[] = DEFAULT_ELEMENTS.filter(
-        (defaultElement) => !elementIdsToRemove.includes(defaultElement.id)
-    );
+  async removeElements(elementIdsToRemove: string[]): Promise<Element[]> {
+    if (this.currentState !== 'Idle') {
+      console.warn('Operation already in progress. Please wait.');
+      return this.elements;
+    }
 
-    // 2) Add non-default elements that are not in the removal list
-    this.elements.forEach((element) => {
-        if (
-            !elementIdsToRemove.includes(element.id) &&
-            !DEFAULT_ELEMENTS.some((defaultEl) => defaultEl.id === element.id)
-        ) {
-            updatedElements.push({ ...element });
-        }
-    });
+    this.setState('Updating');
 
-    // 3) Update the elements array
-    this.elements = updatedElements;
+    try {
+      console.log('Initial elements:', this.elements);
+      console.log('Initial canvas elements:', this.canvasElements);
+      console.log('IDs to remove:', elementIdsToRemove);
 
-    // 4) Remove corresponding canvas elements
-    this.canvasElements = this.canvasElements.filter(
-        (canvasElement) => !elementIdsToRemove.includes(canvasElement.element.id)
-    );
+      this.elements = this.elements.filter(
+        (element) =>
+          !elementIdsToRemove.includes(element.id) ||
+          DEFAULT_ELEMENTS.some((defaultEl) => defaultEl.id === element.id)
+      );
 
-    // 5) Emit events to update the UI
-    ElementEventService.onElementListRefreshed.emit();
-    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+      const missingDefaultElements = DEFAULT_ELEMENTS.filter(
+        (defaultElement) => !this.elements.some((el) => el.id === defaultElement.id)
+      );
+      this.elements = [...missingDefaultElements, ...this.elements];
 
-    // 6) Return the updated elements list
-    return this.elements;
+      this.canvasElements = this.canvasElements.filter(
+        (canvasElement) =>
+          !elementIdsToRemove.includes(canvasElement.element.id) ||
+          DEFAULT_ELEMENTS.some((defaultEl) => defaultEl.id === canvasElement.element.id)
+      );
+
+      console.log('Updated elements:', this.elements);
+      console.log('Updated canvas elements:', this.canvasElements);
+
+      ElementEventService.onElementListRefreshed.emit();
+      ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+
+      this.setState('Completed');
+      return this.elements;
+    } catch (error) {
+      console.error('Error during element removal:', error);
+      this.setState('Idle');
+      throw error;
+    }
+  }
+
+  async removeAllElements(): Promise<Element[]> {
+    if (this.currentState !== 'Idle') {
+      console.warn('Operation already in progress. Please wait.');
+      return this.elements;
+    }
+
+    this.setState('Updating');
+
+    try {
+      this.elements = [...DEFAULT_ELEMENTS];
+      this.canvasElements = [];
+
+      ElementEventService.onElementListRefreshed.emit();
+      ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+
+      this.setState('Completed');
+      return this.elements;
+    } catch (error) {
+      console.error('Error during removeAllElements:', error);
+      this.setState('Idle');
+      throw error;
+    }
   }
 
   addPlacedElement(element: Element, x: number, y: number): void {
+    if (this.currentState !== 'Idle') {
+      console.warn('Cannot add elements while another operation is in progress.');
+      return;
+    }
+
     const canvasElement: CanvasElement = {
       canvasId: Math.random().toString(36).substr(2, 9),
       element,
@@ -74,22 +128,39 @@ export class ElementService {
   }
 
   clearPlacedElements(): void {
+    if (this.currentState !== 'Idle') {
+      console.warn('Cannot clear elements while another operation is in progress.');
+      return;
+    }
+
     this.canvasElements = [];
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
   removePlacedElement(canvasId: string): void {
+    if (this.currentState !== 'Idle') {
+      console.warn('Cannot remove canvas elements while another operation is in progress.');
+      return;
+    }
+
     this.canvasElements = this.canvasElements.filter((el) => el.canvasId !== canvasId);
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
-  async mergeElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<Element | null> {
+  async mergeElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<CanvasElement | null> {
+    if (this.currentState !== 'Idle') {
+        console.warn('Cannot merge elements while another operation is in progress.');
+        return null;
+    }
+
+    this.setState('Updating');
     const elementA = this.elements.find((element) => element.id === sourceElement.element.id);
     const elementB = this.elements.find((element) => element.id === targetElement.element.id);
 
     if (!elementA || !elementB) {
-      console.error('Merge failed: One or both elements not found.');
-      return null;
+        console.error('Merge failed: One or both elements not found.');
+        this.setState('Idle');
+        return null;
     }
 
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
@@ -100,71 +171,89 @@ export class ElementService {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
-      try {
-        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
-          max_new_tokens: 100,
-          temperature: 0.7,
-        });
+        try {
+            const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+                max_new_tokens: 100,
+                temperature: 0.7,
+            });
 
-        const extractedJsons = this.extractJsonsFromString(cleanOutput);
+            const extractedJsons = this.extractJsonsFromString(cleanOutput);
 
-        if (extractedJsons.length > 0) {
-          const newElement: Element = extractedJsons[0];
+            if (extractedJsons.length > 0) {
+                const newElement: Element = extractedJsons[0];
 
-          if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
-            newElement.id = (this.nextElementId++).toString();
-            this.elements.push(newElement);
+                if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
+                    newElement.id = (this.nextElementId++).toString();
+                    this.elements.push(newElement);
 
-            // Update canvas
-            this.removePlacedElement(sourceElement.canvasId);
-            this.removePlacedElement(targetElement.canvasId);
-            const midX = (sourceElement.x + targetElement.x) / 2;
-            const midY = (sourceElement.y + targetElement.y) / 2;
-            this.addPlacedElement(newElement, midX, midY);
+                    // Remove the old canvas elements
+                    this.canvasElements = this.canvasElements.filter(
+                        (canvasEl) =>
+                            canvasEl.canvasId !== sourceElement.canvasId &&
+                            canvasEl.canvasId !== targetElement.canvasId
+                    );
 
-            this.isGenerating = false;
-            console.log('Merge successful:', newElement);
-            return newElement;
-          }
+                    // Create and place the new canvas element
+                    const midX = (sourceElement.x + targetElement.x) / 2;
+                    const midY = (sourceElement.y + targetElement.y) / 2;
+                    const newCanvasElement: CanvasElement = {
+                        canvasId: Math.random().toString(36).substr(2, 9),
+                        element: newElement,
+                        x: midX,
+                        y: midY,
+                    };
+                    this.canvasElements.push(newCanvasElement);
+
+                    // Emit events
+                    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+                    ElementEventService.onElementListRefreshed.emit();
+                    ElementEventService.onElementMerged.emit(newCanvasElement);
+
+                    this.isGenerating = false;
+                    this.setState('Completed');
+                    console.log('Merge successful:', newCanvasElement);
+                    return newCanvasElement;
+                }
+            }
+
+            console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+        } catch (error) {
+            console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
         }
 
-        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
-      } catch (error) {
-        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
-      }
-
-      attempts++;
+        attempts++;
     }
 
     this.isGenerating = false;
+    this.setState('Idle');
     console.error('Failed to generate a valid element after maximum retries.');
     return null;
   }
 
   createMergePrompt(elementA: Element, elementB: Element): string {
     return `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.
-  Here are some examples to understand how elements are merged:
-  - Fire + Water = Steam
-  - Water + Earth = Plant
-  - Earth + Fire = Lava
+Here are some examples to understand how elements are merged:
+- Fire + Water = Steam
+- Water + Earth = Plant
+- Earth + Fire = Lava
 
-  Each element is represented in JSON format with "name" and "emoji" keys only. 
+Each element is represented in JSON format with "name" and "emoji" keys only. 
 
-  For example if:
-  Element A: {"name":"Fire","emoji":"🔥"}
-  Element B: {"name":"Water","emoji":"💧"}
-  The result would be: {"name":"Steam","emoji":"🌫️"}
+For example if:
+Element A: {"name":"Fire","emoji":"🔥"}
+Element B: {"name":"Water","emoji":"💧"}
+The result would be: {"name":"Steam","emoji":"🌫️"}
 
-  or if:
-  Element A: {"name":"Water","emoji":"💧"}
-  Element B: {"name":"Earth","emoji":"🪨"}
-  The result would be: {"name":"Plant","emoji":"🌿"}
+or if:
+Element A: {"name":"Water","emoji":"💧"}
+Element B: {"name":"Earth","emoji":"🪨"}
+The result would be: {"name":"Plant","emoji":"🌿"}
 
-  This means that the new element merged from the following elements:
-  Element A: {"name":"${elementA.name}","emoji":"${elementA.emoji}"}
-  Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
-  Should be the following:
-  `;
+This means that the new element merged from the following elements:
+Element A: {"name":"${elementA.name}","emoji":"${elementA.emoji}"}
+Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
+Should be the following:
+`;
   }
 
   isValidEmoji(emoji: string): boolean {
@@ -174,7 +263,7 @@ export class ElementService {
   }
 
   extractJsonsFromString(text: string): any[] {
-    const jsonMatches = text.match(/\{[\s\S]*?\}/g); // Match all JSON-like blocks
+    const jsonMatches = text.match(/\{[\s\S]*?\}/g);
     if (!jsonMatches) {
       return [];
     }
@@ -188,6 +277,6 @@ export class ElementService {
       }
     });
 
-    return jsonObjects.filter((json) => json !== null); // Filter out invalid JSONs
+    return jsonObjects.filter((json) => json !== null);
   }
 }

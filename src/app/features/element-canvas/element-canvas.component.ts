@@ -18,8 +18,9 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
 
   constructor(private elementService: ElementService) {}
 
-  ngOnInit() {
-    // Subscribe to events here
+  ngOnInit(): void {
+    this.loadCanvasElements();
+
     ElementEventService.onCanvasUpdated.subscribe((updatedCanvasElements) => {
       this.canvasElements = updatedCanvasElements;
       console.log('Canvas refreshed:', this.canvasElements);
@@ -34,12 +35,17 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     });
   }
 
-  ngAfterViewInit() {
-    this.updateCanvasBounds(); // Ensure this runs after the canvasRef is initialized
+  ngAfterViewInit(): void {
+    this.updateCanvasBounds();
     window.addEventListener('resize', () => this.updateCanvasBounds());
   }
 
-  updateCanvasBounds() {
+  private loadCanvasElements(): void {
+    this.canvasElements = this.elementService.getCanvasElements();
+    console.log('Canvas elements loaded:', this.canvasElements);
+  }
+
+  private updateCanvasBounds(): void {
     if (!this.canvasRef) {
       console.warn('Canvas reference not available.');
       return;
@@ -49,21 +55,38 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     const rect = canvas.getBoundingClientRect();
     this.canvasWidth = rect.width;
     this.canvasHeight = rect.height;
+    console.log(`Canvas bounds updated: ${this.canvasWidth}x${this.canvasHeight}`);
   }
 
-  placeElementAtRandomPosition(element: Element) {
+  private placeElementAtRandomPosition(element: Element): void {
+    if (this.elementService.getIsGenerating()) {
+      console.warn('Element placement is blocked during ongoing operations.');
+      return;
+    }
+
     const x = Math.random() * (this.canvasWidth - 50);
     const y = Math.random() * (this.canvasHeight - 50);
     this.elementService.addPlacedElement(element, x, y);
   }
 
-  handleElementDrop(element: Element, x: number, y: number) {
+  private handleElementDrop(element: Element, x: number, y: number): void {
+    if (this.elementService.getIsGenerating()) {
+      console.warn('Element drop is blocked during ongoing operations.');
+      return;
+    }
+
     const constrainedX = Math.max(0, Math.min(this.canvasWidth - 50, x));
     const constrainedY = Math.max(0, Math.min(this.canvasHeight - 50, y));
     this.elementService.addPlacedElement(element, constrainedX, constrainedY);
   }
 
-  clearCanvas() {
+  clearCanvas(): void {
+    if (this.elementService.getIsGenerating()) {
+      console.warn('Canvas clearing is blocked during ongoing operations.');
+      return;
+    }
+
     this.elementService.clearPlacedElements();
+    console.log('Canvas cleared.');
   }
 }
