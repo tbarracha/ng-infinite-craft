@@ -1,5 +1,5 @@
 
-# Ng Infinity Craft 🌌  
+# Ng Infinite Craft 🌌  
 
 https://ng-infinite-craft.onrender.com
 
