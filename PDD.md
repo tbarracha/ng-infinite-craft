@@ -35,12 +35,14 @@ merge is the result of the two names:
 
 emoji being a 'word + emoji'"
 - {"name":"Wet Air","emoji":" Spray! 🌟"}
+- {"name":"Breezy","emoji":" breezy 🌱"}
+- {"name":"Lava","emoji":"🔥 lava"}
 
 
 ## TODO:
 - [x] Check if emoji already exists
 - [x] Clamp element drag and drop
-- [ ] Confetti on element merged
+- [x] Confetti on element merged
 - [ ] Delete targeted canvas elements
 - [ ] Add darkmode
 

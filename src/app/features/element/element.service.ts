@@ -196,6 +196,21 @@ export class ElementService {
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
+  removeCanvasElementsByIds(canvasIds: string[]): void {
+    if (this.currentState !== 'Idle') {
+      console.warn('Cannot remove canvas elements while another operation is in progress.');
+      return;
+    }
+  
+    this.canvasElements = new List<CanvasElement>();
+    this.canvasElements.addRange(
+      this.canvasElements.toArray().filter((el) => !canvasIds.includes(el.canvasId))
+    );
+  
+    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+  }
+  
+
   async mergeCanvasElements(
     sourceElement: CanvasElement,
     targetElement: CanvasElement
