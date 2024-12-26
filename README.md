@@ -4,13 +4,24 @@
 ### TL;DR  
 Ng Infinity Craft is a **7-day prototype** inspired by Infinite Craft. Built with **Angular** and powered by **Transformers.js**, it combines the classic element-merging game with a **local, in-browser LLM** to dynamically generate new elements. Originally meant to be scrapped due to LLM quirks, a shower *aha!* moment brought it back to life. This quick experiment lacks features like saving/loading, canvas element deletion, and dark mode—but it’s all about pushing boundaries and having fun!
 
+https://github.com/user-attachments/assets/cf359be7-decb-4678-9069-600bead34605  
+
+---
+
+### Install Dependencies
+To get started, clone the repo & install the required packages:
+
+```bash
+npm install
+npm install canvas-confetti
+npm i --save-dev @types/canvas-confetti
+```
+
 ---
 
 # Ng Infinity Craft 🌌  
 
-**Ng Infinity Craft** is the result of a **7-day challenge** to reimagine the viral **Infinite Craft** game. Built using **Angular** and leveraging **Transformers.js**, this project blends creativity with cutting-edge technology. At its heart is a **local, in-browser language model (LLM)** that dynamically generates unique elements when predefined recipes don’t exist.  
-
-https://github.com/user-attachments/assets/cf359be7-decb-4678-9069-600bead34605  
+**Ng Infinity Craft** is the result of a **7-day challenge** to reimagine the viral **Infinite Craft** game. Built using **Angular** and leveraging **Transformers.js**, this project blends creativity with cutting-edge technology. At its heart is a **local, in-browser language model (LLM)** that dynamically generates unique elements when predefined recipes don’t exist.
 
 Initially, I didn’t plan to finish this project. The quirks of working with LLMs—like their tendency to *continue* text instead of inventing new ideas—made me want to throw in the towel. But then, **mid-shower—BOOM 💥—an idea struck**! With renewed enthusiasm, I spent the remaining days polishing it into something I’m proud to share.  
 
