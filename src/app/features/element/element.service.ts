@@ -49,48 +49,56 @@ export class ElementService {
 
   async removeElements(elementIdsToRemove: string[]): Promise<Element[]> {
     if (this.currentState !== 'Idle') {
-      console.warn('Operation already in progress. Please wait.');
-      return this.getAllElements();
+        console.warn('Operation already in progress. Please wait.');
+        return this.getAllElements();
     }
 
     this.setState('Updating');
 
     try {
-      const highestDefaultId = Math.max(...DEFAULT_ELEMENTS.map(el => Number(el.id)));
-      console.log('Highest ID:', highestDefaultId);
+        const highestDefaultId = Math.max(...DEFAULT_ELEMENTS.map(el => Number(el.id)));
+        console.log('Highest ID:', highestDefaultId);
 
-      const prevElements = this.elements.toArray();
-      const prevCanvasElements = this.canvasElements.toArray();
+        const prevElements = this.elements.toArray();
+        const prevCanvasElements = this.canvasElements.toArray();
 
-      this.elements.clear();
-      this.elements.addRange(DEFAULT_ELEMENTS);
+        // Identify the elements being removed
+        const removedElements = prevElements.filter(element =>
+            elementIdsToRemove.includes(element.id)
+        );
 
-      for (let i = 0; i < prevElements.length; i++) {
-        const element = prevElements[i];
-        const id = Number(element.id);
-        if (id > highestDefaultId && !elementIdsToRemove.includes(element.id)) {
-          this.elements.add(element);
+        this.elements.clear();
+        this.elements.addRange(DEFAULT_ELEMENTS);
+
+        for (let i = 0; i < prevElements.length; i++) {
+            const element = prevElements[i];
+            const id = Number(element.id);
+            if (id > highestDefaultId && !elementIdsToRemove.includes(element.id)) {
+                this.elements.add(element);
+            }
         }
-      }
 
-      this.canvasElements.clear();
+        this.canvasElements.clear();
 
-      for (let i = 0; i < prevCanvasElements.length; i++) {
-        const canvasElement = prevCanvasElements[i];
-        if (!elementIdsToRemove.includes(canvasElement.element.id)) {
-          this.canvasElements.add(canvasElement);
+        for (let i = 0; i < prevCanvasElements.length; i++) {
+            const canvasElement = prevCanvasElements[i];
+            if (!elementIdsToRemove.includes(canvasElement.element.id)) {
+                this.canvasElements.add(canvasElement);
+            }
         }
-      }
 
-      ElementEventService.onElementListRefreshed.emit();
-      ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+        // Remove related recipes from mergeRecipes
+        this.removeRelatedRecipes(removedElements);
 
-      this.setState('Completed');
-      return this.getAllElements();
+        ElementEventService.onElementListRefreshed.emit();
+        ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+
+        this.setState('Completed');
+        return this.getAllElements();
     } catch (error) {
-      console.error('Error during element removal:', error);
-      this.setState('Idle');
-      throw error;
+        console.error('Error during element removal:', error);
+        this.setState('Idle');
+        throw error;
     }
   }
 
@@ -119,6 +127,35 @@ export class ElementService {
         this.setState('Idle');
         throw error;
     }
+  }
+
+  private removeRelatedRecipes(removedElements: Element[]): void {
+    const removedNames = new Set(removedElements.map(element => element.name));
+    const recipesToRemove = new Set<string>();
+  
+    // Identify recipes involving the removed elements
+    for (const [key, resultElement] of this.mergeRecipes) {
+      const [nameA, nameB] = key.split('+');
+      if (removedNames.has(nameA) || removedNames.has(nameB) || (resultElement && removedNames.has(resultElement.name))) {
+        recipesToRemove.add(key);
+      }
+    }
+  
+    // Remove identified recipes and recursively find more
+    recipesToRemove.forEach(recipeKey => {
+      const resultElement = this.mergeRecipes.get(recipeKey);
+  
+      // Ensure resultElement exists before processing further
+      if (resultElement) {
+        this.mergeRecipes.delete(recipeKey);
+        console.log(`Removed recipe: ${recipeKey}`);
+  
+        // Recursively remove recipes involving the result of this recipe
+        this.removeRelatedRecipes([resultElement]);
+      } else {
+        console.warn(`Recipe ${recipeKey} references a missing element and has been skipped.`);
+      }
+    });
   }
 
   addPlacedElement(element: Element, x: number, y: number): void {
@@ -159,109 +196,120 @@ export class ElementService {
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
-  async mergeCanvasElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<CanvasElement | null> {
+  async mergeCanvasElements(
+    sourceElement: CanvasElement,
+    targetElement: CanvasElement
+  ): Promise<CanvasElement | null> {
     if (this.currentState !== 'Idle') {
-        console.warn('Cannot merge elements while another operation is in progress.');
-        return null;
+      console.warn('Cannot merge elements while another operation is in progress.');
+      return null;
     }
-
+  
     this.setState('Updating');
-
+  
     const elementA = this.elements.find(element => element.id === sourceElement.element.id);
     const elementB = this.elements.find(element => element.id === targetElement.element.id);
-
+  
     if (!elementA || !elementB) {
-        console.error('Merge failed: One or both elements not found.');
-        this.setState('Idle');
-        return null;
+      console.error('Merge failed: One or both elements not found.');
+      this.setState('Idle');
+      return null;
     }
-
+  
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
-
+  
     // Check if the merge already exists in the dictionary
     const mergeKey = this.generateMergeKey(elementA, elementB);
     if (this.mergeRecipes.has(mergeKey)) {
-        const existingElement = this.mergeRecipes.get(mergeKey)!;
-
-        console.log('Merge found in recipes:', existingElement);
-        return this.mergeSuccess(existingElement, sourceElement, targetElement);
+      const existingElement = this.mergeRecipes.get(mergeKey)!;
+  
+      console.log('Merge found in recipes:', existingElement);
+      return this.mergeSuccess(existingElement, sourceElement, targetElement, true); // Pass true for isFromRecipe
     }
-
+  
     // Generate a new merge via the LLM if not found
     const prompt = this.createMergePrompt(elementA, elementB);
     this.isGenerating = true;
-
+  
     const maxAttempts = 5;
     let attempts = 0;
-
+  
     while (attempts < maxAttempts) {
-        try {
-            const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
-                max_new_tokens: 100,
-                temperature: 0.7,
-            });
-
-            const extractedJsons = this.extractJsonsFromString(cleanOutput);
-
-            if (extractedJsons.length > 0) {
-                const newElement: Element = extractedJsons[0];
-
-                if (this.isValidJson(newElement, elementA, elementB)) {
-                    // Add the recipe to the dictionary
-                    this.mergeRecipes.set(mergeKey, newElement);
-
-                    return this.mergeSuccess(newElement, sourceElement, targetElement);
-                }
-            }
-
-            console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
-        } catch (error) {
-            console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+      try {
+        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+          max_new_tokens: 100,
+          temperature: 0.7,
+        });
+  
+        const extractedJsons = this.extractJsonsFromString(cleanOutput);
+  
+        if (extractedJsons.length > 0) {
+          const newElement: Element = extractedJsons[0];
+  
+          if (this.isValidJson(newElement, elementA, elementB)) {
+            // Add the recipe to the dictionary
+            this.mergeRecipes.set(mergeKey, newElement);
+  
+            return this.mergeSuccess(newElement, sourceElement, targetElement, false); // Pass false for isFromRecipe
+          }
         }
-
-        attempts++;
+  
+        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+      } catch (error) {
+        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+      }
+  
+      attempts++;
     }
-
+  
     console.error('Failed to generate a valid element after maximum retries.');
     this.mergeFailed(sourceElement, targetElement);
     return null;
-  }
+  }  
 
-  private mergeSuccess(newElement: Element, sourceElement: CanvasElement, targetElement: CanvasElement): CanvasElement {
-    newElement.id = (this.nextElementId++).toString();
-    this.elements.add(newElement);
-
+  private mergeSuccess(
+    newElement: Element,
+    sourceElement: CanvasElement,
+    targetElement: CanvasElement,
+    isFromRecipe: boolean = false // Indicates if the element is from mergeRecipes
+  ): CanvasElement {
+    // Only assign a new ID and add to elements if not from mergeRecipes
+    if (!isFromRecipe) {
+      newElement.id = (this.nextElementId++).toString();
+      this.elements.add(newElement);
+    }
+  
     // Remove only the merged elements from canvasElements
     this.canvasElements.removeAll(canvasEl =>
-        canvasEl.canvasId === sourceElement.canvasId || canvasEl.canvasId === targetElement.canvasId
+      canvasEl.canvasId === sourceElement.canvasId || canvasEl.canvasId === targetElement.canvasId
     );
-
+  
     // Create and place the new canvas element
     const midX = (sourceElement.x + targetElement.x) / 2;
     const midY = (sourceElement.y + targetElement.y) / 2;
     const newCanvasElement: CanvasElement = {
-        canvasId: Math.random().toString(36).substr(2, 9),
-        element: newElement,
-        x: midX,
-        y: midY,
+      canvasId: Math.random().toString(36).substr(2, 9),
+      element: newElement,
+      x: midX,
+      y: midY,
     };
     this.canvasElements.add(newCanvasElement);
-
+  
     // Trigger visual and sound effects
     const offset: number = 32;
     this.visualEffectService.playConfettiAtPosition(midX + offset, midY - offset);
     this.visualEffectService.playSuccess();
-
+  
     // Emit events
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
     ElementEventService.onElementListRefreshed.emit();
     ElementEventService.onElementMerged.emit(newCanvasElement);
-
+  
     this.isGenerating = false;
     this.setState('Completed');
     console.log('Merge successful:', newCanvasElement);
     return newCanvasElement;
-  }
+  }  
 
   mergeFailed(sourceElement: CanvasElement, targetElement: CanvasElement) {
     this.visualEffectService.playFailure();
