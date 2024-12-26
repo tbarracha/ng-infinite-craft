@@ -1,19 +1,23 @@
 <div class="h-full w-full flex flex-row">
-    @if (isLoading || errorMessage) {
-      <div class="flex items-center justify-center w-full h-full absolute z-50 bg-gray-100 bg-opacity-50">
-        @if (errorMessage) {
-          <div class="text-lg flex items-center gap-2 text-red-500">
-            ❌ <span>{{ errorMessage }}</span>
-          </div>
-        } @else {
-          <div class="text-lg flex items-center gap-2 animate-bounce">
+  @if (isLoading || errorMessage) {
+    <div class="flex items-center justify-center w-full h-full absolute z-50 bg-gray-100 bg-opacity-50">
+      @if (errorMessage) {
+        <div class="text-lg flex items-center gap-2 text-red-500">
+          ❌ <span>{{ errorMessage }}</span>
+        </div>
+      } @else {
+        <div class="flex flex-col items-center gap-2 animate-bounce">
+          <div class="text-lg flex items-center gap-2">
             🤖 <span>Loading Model</span>
           </div>
-        }
-      </div>
-    }
-  
-    <app-element-canvas class="flex-grow"></app-element-canvas>
-    <app-element-list class="w-1/4"></app-element-list>
-  </div>
-  
+          <div class="text-sm text-gray-500">
+            This may take some time depending on your hardware.
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <app-element-canvas class="flex-grow"></app-element-canvas>
+  <app-element-list class="w-1/4"></app-element-list>
+</div>
