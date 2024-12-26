@@ -55,6 +55,8 @@ export class ElementListComponent implements OnInit {
     }
 
     try {
+      console.log('Deleting selected elements:', this.selectedElements);
+
       // Use the service method to remove elements asynchronously
       this.elements = await this.elementService.removeElements([...this.selectedElements]);
 

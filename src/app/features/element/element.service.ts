@@ -2,21 +2,24 @@ import { Injectable } from '@angular/core';
 import { DEFAULT_ELEMENTS, Element, CanvasElement } from './element';
 import { TransformerService } from '../../core/services/transformer.service';
 import { ElementEventService } from './element-event.service';
+import { List } from '../../core/list';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ElementService {
-  private elements: Element[] = DEFAULT_ELEMENTS;
-  private canvasElements: CanvasElement[] = [];
+  private elements: List<Element> = new List<Element>();
+  private canvasElements: List<CanvasElement> = new List<CanvasElement>();
   private isGenerating = false;
   private nextElementId: number = 5;
   private currentState: 'Idle' | 'Updating' | 'Completed' = 'Idle';
 
   constructor(private transformerService: TransformerService) {
     ElementEventService.onElementDroppedOn.subscribe(async ({ sourceElement, targetElement }) => {
-      await this.mergeElements(sourceElement, targetElement);
+      await this.mergeCanvasElements(sourceElement, targetElement);
     });
+
+    this.elements.addRange(DEFAULT_ELEMENTS);
   }
 
   private setState(state: 'Idle' | 'Updating' | 'Completed'): void {
@@ -35,47 +38,49 @@ export class ElementService {
   }
 
   getAllElements(): Element[] {
-    return this.elements;
+    return this.elements.toArray();
   }
 
   async removeElements(elementIdsToRemove: string[]): Promise<Element[]> {
     if (this.currentState !== 'Idle') {
       console.warn('Operation already in progress. Please wait.');
-      return this.elements;
+      return this.getAllElements();
     }
 
     this.setState('Updating');
 
     try {
-      console.log('Initial elements:', this.elements);
-      console.log('Initial canvas elements:', this.canvasElements);
-      console.log('IDs to remove:', elementIdsToRemove);
+      const highestDefaultId = Math.max(...DEFAULT_ELEMENTS.map(el => Number(el.id)));
+      console.log('Highest ID:', highestDefaultId);
 
-      this.elements = this.elements.filter(
-        (element) =>
-          !elementIdsToRemove.includes(element.id) ||
-          DEFAULT_ELEMENTS.some((defaultEl) => defaultEl.id === element.id)
-      );
+      const prevElements = this.elements.toArray();
+      const prevCanvasElements = this.canvasElements.toArray();
 
-      const missingDefaultElements = DEFAULT_ELEMENTS.filter(
-        (defaultElement) => !this.elements.some((el) => el.id === defaultElement.id)
-      );
-      this.elements = [...missingDefaultElements, ...this.elements];
+      this.elements.clear();
+      this.elements.addRange(DEFAULT_ELEMENTS);
 
-      this.canvasElements = this.canvasElements.filter(
-        (canvasElement) =>
-          !elementIdsToRemove.includes(canvasElement.element.id) ||
-          DEFAULT_ELEMENTS.some((defaultEl) => defaultEl.id === canvasElement.element.id)
-      );
+      for (let i = 0; i < prevElements.length; i++) {
+        const element = prevElements[i];
+        const id = Number(element.id);
+        if (id > highestDefaultId && !elementIdsToRemove.includes(element.id)) {
+          this.elements.add(element);
+        }
+      }
 
-      console.log('Updated elements:', this.elements);
-      console.log('Updated canvas elements:', this.canvasElements);
+      this.canvasElements.clear();
+
+      for (let i = 0; i < prevCanvasElements.length; i++) {
+        const canvasElement = prevCanvasElements[i];
+        if (!elementIdsToRemove.includes(canvasElement.element.id)) {
+          this.canvasElements.add(canvasElement);
+        }
+      }
 
       ElementEventService.onElementListRefreshed.emit();
       ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
 
       this.setState('Completed');
-      return this.elements;
+      return this.getAllElements();
     } catch (error) {
       console.error('Error during element removal:', error);
       this.setState('Idle');
@@ -85,25 +90,28 @@ export class ElementService {
 
   async removeAllElements(): Promise<Element[]> {
     if (this.currentState !== 'Idle') {
-      console.warn('Operation already in progress. Please wait.');
-      return this.elements;
+        console.warn('Operation already in progress. Please wait.');
+        return this.getAllElements();
     }
 
-    this.setState('Updating');
-
     try {
-      this.elements = [...DEFAULT_ELEMENTS];
-      this.canvasElements = [];
+        // Determine the IDs of all non-default elements
+        const highestDefaultId = Math.max(...DEFAULT_ELEMENTS.map(el => Number(el.id)));
+        const elementIdsToRemove = this.elements
+            .toArray()
+            .filter(element => Number(element.id) > highestDefaultId)
+            .map(element => element.id);
 
-      ElementEventService.onElementListRefreshed.emit();
-      ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+        // Delegate removal to removeElements
+        const updatedElements = await this.removeElements(elementIdsToRemove);
 
-      this.setState('Completed');
-      return this.elements;
+        // Emit events to update the UI
+        ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+        return updatedElements;
     } catch (error) {
-      console.error('Error during removeAllElements:', error);
-      this.setState('Idle');
-      throw error;
+        console.error('Error during removeAllElements:', error);
+        this.setState('Idle');
+        throw error;
     }
   }
 
@@ -119,43 +127,47 @@ export class ElementService {
       x,
       y,
     };
-    this.canvasElements.push(canvasElement);
+    this.canvasElements.add(canvasElement);
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
   getCanvasElements(): CanvasElement[] {
-    return this.canvasElements;
+    return this.canvasElements.toArray();
   }
 
-  clearPlacedElements(): void {
+  clearCanvasElements(): void {
     if (this.currentState !== 'Idle') {
       console.warn('Cannot clear elements while another operation is in progress.');
       return;
     }
 
-    this.canvasElements = [];
+    this.canvasElements.clear();
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
-  removePlacedElement(canvasId: string): void {
+  removeCanvasElementById(canvasId: string): void {
     if (this.currentState !== 'Idle') {
       console.warn('Cannot remove canvas elements while another operation is in progress.');
       return;
     }
 
-    this.canvasElements = this.canvasElements.filter((el) => el.canvasId !== canvasId);
+    this.canvasElements = new List<CanvasElement>();
+    this.canvasElements.addRange(
+      this.canvasElements.toArray().filter((el) => el.canvasId !== canvasId)
+    );
     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
   }
 
-  async mergeElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<CanvasElement | null> {
+  async mergeCanvasElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<CanvasElement | null> {
     if (this.currentState !== 'Idle') {
         console.warn('Cannot merge elements while another operation is in progress.');
         return null;
     }
 
     this.setState('Updating');
-    const elementA = this.elements.find((element) => element.id === sourceElement.element.id);
-    const elementB = this.elements.find((element) => element.id === targetElement.element.id);
+
+    const elementA = this.elements.find(element => element.id === sourceElement.element.id);
+    const elementB = this.elements.find(element => element.id === targetElement.element.id);
 
     if (!elementA || !elementB) {
         console.error('Merge failed: One or both elements not found.');
@@ -184,13 +196,12 @@ export class ElementService {
 
                 if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
                     newElement.id = (this.nextElementId++).toString();
-                    this.elements.push(newElement);
+                    this.elements.add(newElement);
 
-                    // Remove the old canvas elements
-                    this.canvasElements = this.canvasElements.filter(
-                        (canvasEl) =>
-                            canvasEl.canvasId !== sourceElement.canvasId &&
-                            canvasEl.canvasId !== targetElement.canvasId
+                    // Remove only the merged elements from canvasElements
+                    this.canvasElements.removeAll(canvasEl =>
+                        canvasEl.canvasId === sourceElement.canvasId ||
+                        canvasEl.canvasId === targetElement.canvasId
                     );
 
                     // Create and place the new canvas element
@@ -202,7 +213,7 @@ export class ElementService {
                         x: midX,
                         y: midY,
                     };
-                    this.canvasElements.push(newCanvasElement);
+                    this.canvasElements.add(newCanvasElement);
 
                     // Emit events
                     ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
@@ -230,6 +241,30 @@ export class ElementService {
     return null;
   }
 
+  extractJsonsFromString(text: string): any[] {
+    const jsonMatches = text.match(/\{[\s\S]*?\}/g);
+    if (!jsonMatches) {
+      return [];
+    }
+
+    const jsonObjects = jsonMatches.map((jsonString) => {
+      try {
+        return JSON.parse(jsonString);
+      } catch (error) {
+        console.warn('Failed to parse JSON:', jsonString, error);
+        return null;
+      }
+    });
+
+    return jsonObjects.filter((json) => json !== null);
+  }
+
+  isValidEmoji(emoji: string): boolean {
+    const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base})/gu;
+    const matches = emoji.match(emojiRegex);
+    return matches !== null && matches.length === 1;
+  }
+
   createMergePrompt(elementA: Element, elementB: Element): string {
     return `I am trying to combine two elements to create new elements using the json format with "name" and "emoji" keys only.
 Here are some examples to understand how elements are merged:
@@ -254,29 +289,5 @@ Element A: {"name":"${elementA.name}","emoji":"${elementA.emoji}"}
 Element B: {"name":"${elementB.name}","emoji":"${elementB.emoji}"}
 Should be the following:
 `;
-  }
-
-  isValidEmoji(emoji: string): boolean {
-    const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base})/gu;
-    const matches = emoji.match(emojiRegex);
-    return matches !== null && matches.length === 1;
-  }
-
-  extractJsonsFromString(text: string): any[] {
-    const jsonMatches = text.match(/\{[\s\S]*?\}/g);
-    if (!jsonMatches) {
-      return [];
-    }
-
-    const jsonObjects = jsonMatches.map((jsonString) => {
-      try {
-        return JSON.parse(jsonString);
-      } catch (error) {
-        console.warn('Failed to parse JSON:', jsonString, error);
-        return null;
-      }
-    });
-
-    return jsonObjects.filter((json) => json !== null);
   }
 }

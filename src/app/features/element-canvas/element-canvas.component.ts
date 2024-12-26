@@ -55,7 +55,7 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
     const rect = canvas.getBoundingClientRect();
     this.canvasWidth = rect.width;
     this.canvasHeight = rect.height;
-    console.log(`Canvas bounds updated: ${this.canvasWidth}x${this.canvasHeight}`);
+    //console.log(`Canvas bounds updated: ${this.canvasWidth}x${this.canvasHeight}`);
   }
 
   private placeElementAtRandomPosition(element: Element): void {
@@ -86,7 +86,7 @@ export class ElementCanvasComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    this.elementService.clearPlacedElements();
+    this.elementService.clearCanvasElements();
     console.log('Canvas cleared.');
   }
 }
