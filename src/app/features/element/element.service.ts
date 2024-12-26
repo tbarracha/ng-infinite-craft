@@ -3,6 +3,7 @@ import { DEFAULT_ELEMENTS, Element, CanvasElement } from './element';
 import { TransformerService } from '../../core/services/transformer.service';
 import { ElementEventService } from './element-event.service';
 import { List } from '../../core/list';
+import { VisualEffectsService } from '../../core/services/visual-effects.service';
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +15,10 @@ export class ElementService {
   private nextElementId: number = 5;
   private currentState: 'Idle' | 'Updating' | 'Completed' = 'Idle';
 
-  constructor(private transformerService: TransformerService) {
+  constructor(
+    private transformerService: TransformerService,
+    private visualEffectService: VisualEffectsService
+  ) {
     ElementEventService.onElementDroppedOn.subscribe(async ({ sourceElement, targetElement }) => {
       await this.mergeCanvasElements(sourceElement, targetElement);
     });
@@ -160,8 +164,8 @@ export class ElementService {
 
   async mergeCanvasElements(sourceElement: CanvasElement, targetElement: CanvasElement): Promise<CanvasElement | null> {
     if (this.currentState !== 'Idle') {
-        console.warn('Cannot merge elements while another operation is in progress.');
-        return null;
+      console.warn('Cannot merge elements while another operation is in progress.');
+      return null;
     }
 
     this.setState('Updating');
@@ -170,9 +174,9 @@ export class ElementService {
     const elementB = this.elements.find(element => element.id === targetElement.element.id);
 
     if (!elementA || !elementB) {
-        console.error('Merge failed: One or both elements not found.');
-        this.setState('Idle');
-        return null;
+      console.error('Merge failed: One or both elements not found.');
+      this.setState('Idle');
+      return null;
     }
 
     console.log(`Merging elements: ${elementA.name} (${elementA.emoji}) + ${elementB.name} (${elementB.emoji})`);
@@ -183,56 +187,61 @@ export class ElementService {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
-        try {
-            const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
-                max_new_tokens: 100,
-                temperature: 0.7,
-            });
+      try {
+        const { rawOutput, cleanOutput } = await this.transformerService.generateChatCompletion(prompt, {
+          max_new_tokens: 100,
+          temperature: 0.7,
+        });
 
-            const extractedJsons = this.extractJsonsFromString(cleanOutput);
+        const extractedJsons = this.extractJsonsFromString(cleanOutput);
 
-            if (extractedJsons.length > 0) {
-                const newElement: Element = extractedJsons[0];
+        if (extractedJsons.length > 0) {
+          const newElement: Element = extractedJsons[0];
 
-                if (this.isValidJson(newElement, elementA, elementB)) {
-                    newElement.id = (this.nextElementId++).toString();
-                    this.elements.add(newElement);
+          if (this.isValidJson(newElement, elementA, elementB)) {
 
-                    // Remove only the merged elements from canvasElements
-                    this.canvasElements.removeAll(canvasEl =>
-                        canvasEl.canvasId === sourceElement.canvasId ||
-                        canvasEl.canvasId === targetElement.canvasId
-                    );
+            newElement.id = (this.nextElementId++).toString();
+            this.elements.add(newElement);
 
-                    // Create and place the new canvas element
-                    const midX = (sourceElement.x + targetElement.x) / 2;
-                    const midY = (sourceElement.y + targetElement.y) / 2;
-                    const newCanvasElement: CanvasElement = {
-                        canvasId: Math.random().toString(36).substr(2, 9),
-                        element: newElement,
-                        x: midX,
-                        y: midY,
-                    };
-                    this.canvasElements.add(newCanvasElement);
+            // Remove only the merged elements from canvasElements
+            this.canvasElements.removeAll(canvasEl =>
+              canvasEl.canvasId === sourceElement.canvasId ||
+              canvasEl.canvasId === targetElement.canvasId
+            );
 
-                    // Emit events
-                    ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
-                    ElementEventService.onElementListRefreshed.emit();
-                    ElementEventService.onElementMerged.emit(newCanvasElement);
+            // Create and place the new canvas element
+            const midX = (sourceElement.x + targetElement.x) / 2;
+            const midY = (sourceElement.y + targetElement.y) / 2;
+            const newCanvasElement: CanvasElement = {
+              canvasId: Math.random().toString(36).substr(2, 9),
+              element: newElement,
+              x: midX,
+              y: midY,
+            };
+            this.canvasElements.add(newCanvasElement);
+            
+            // Trigger visual and sound effects
+            this.visualEffectService.playConfettiAtPosition(midX, midY);
+            this.visualEffectService.playSound();
 
-                    this.isGenerating = false;
-                    this.setState('Completed');
-                    console.log('Merge successful:', newCanvasElement);
-                    return newCanvasElement;
-                }
-            }
+            // Emit events
+            ElementEventService.onCanvasUpdated.emit(this.getCanvasElements());
+            ElementEventService.onElementListRefreshed.emit();
+            ElementEventService.onElementMerged.emit(newCanvasElement);
 
-            console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
-        } catch (error) {
-            console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+            this.isGenerating = false;
+            this.setState('Completed');
+            console.log('Merge successful:', newCanvasElement);
+            return newCanvasElement;
+          }
         }
 
-        attempts++;
+        console.warn(`Attempt ${attempts + 1}: Invalid generated element. Retrying...`);
+      } catch (error) {
+        console.error(`Attempt ${attempts + 1}: Error during element generation:`, error);
+      }
+
+      attempts++;
     }
 
     this.isGenerating = false;

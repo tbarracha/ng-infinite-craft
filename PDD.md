@@ -33,7 +33,12 @@ merge is the result of the two names:
 - {"name":"Aeroplane lava","emoji":"💥"}
 - {"name":"Aeroplane+lava","emoji":"💥"}
 
+## Credits
+Sound Effect by <a href="https://pixabay.com/users/rasoolasaad-47313572/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=269266">Rasool Asaad</a> from <a href="https://pixabay.com/sound-effects//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=269266">Pixabay</a>
+
 ## TODO:
 - [x] Check if emoji already exists
 - [x] Clamp element drag and drop
 - [ ] Confetti on element merged
+- [ ] Delete targeted canvas elements
+- [ ] Add darkmode

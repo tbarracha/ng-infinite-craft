@@ -27,19 +27,25 @@ export class ElementCanvasCardComponent implements AfterViewInit {
   constructor(public elementService: ElementService) {}
 
   ngAfterViewInit() {
-    const rect = this.cardRef.nativeElement.getBoundingClientRect();
-    this.cardWidth = rect.width;
-    this.cardHeight = rect.height;
-  
+    this.refreshCardSize();
+
     ElementEventService.onElementDroppedOn.subscribe(({ sourceElement, targetElement }) => {
       if (sourceElement.canvasId === this.canvasElement.canvasId || targetElement.canvasId === this.canvasElement.canvasId) {
         this.canvasElement.isBeingMerged = true;
       }
     });
-  }  
+  }
+
+  refreshCardSize() {
+    const rect = this.cardRef.nativeElement.getBoundingClientRect();
+    this.cardWidth = rect.width;
+    this.cardHeight = rect.height;
+  }
 
   @HostListener('mousedown', ['$event'])
   onMouseDown(event: MouseEvent) {
+    this.refreshCardSize();
+
     if (this.elementService.getIsGenerating()) {
       return; // Prevent interaction during element generation
     }
