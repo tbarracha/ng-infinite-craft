@@ -1,3 +1,20 @@
-<div class="w-screen h-screen overflow-hidden">
-    <router-outlet />
-</div>
+<div class="w-screen h-screen flex flex-col overflow-hidden">
+    <!-- Main Content -->
+    <div class="flex-grow">
+      <router-outlet></router-outlet>
+    </div>
+  
+    <!-- Footer -->
+    <footer class="w-full h-8 bg-slate-900 border-t flex items-center justify-center text-sm text-gray-200">
+      Made with ❤️ by
+      <a href="https://tiagobarracha.netlify.app/" target="_blank" class="text-blue-500 hover:underline ml-1">
+        Tiago Barracha
+      </a>
+      . Check out the
+      <a href="https://github.com/tbarracha/ng-infinite-craft" target="_blank"
+        class="text-blue-500 hover:underline ml-1">
+        GitHub repository
+      </a>.
+    </footer>
+  </div>
+  
