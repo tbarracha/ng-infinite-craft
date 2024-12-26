@@ -194,7 +194,7 @@ export class ElementService {
             if (extractedJsons.length > 0) {
                 const newElement: Element = extractedJsons[0];
 
-                if (newElement?.name && this.isValidEmoji(newElement.emoji)) {
+                if (this.isValidJson(newElement, elementA, elementB)) {
                     newElement.id = (this.nextElementId++).toString();
                     this.elements.add(newElement);
 
@@ -239,6 +239,40 @@ export class ElementService {
     this.setState('Idle');
     console.error('Failed to generate a valid element after maximum retries.');
     return null;
+  }
+
+  isValidJson(json: Element, elementA: Element, elementB: Element): boolean {
+    if (!json || typeof json.name !== 'string' || typeof json.emoji !== 'string') {
+        console.warn('Invalid JSON structure:', json);
+        return false;
+    }
+
+    // Check for a valid emoji
+    if (!this.isValidEmoji(json.emoji)) {
+        console.warn('Invalid emoji:', json.emoji);
+        return false;
+    }
+
+    // Check for concatenated names
+    const invalidNames = [
+        `${elementA.name} ${elementB.name}`,
+        `${elementA.name}+${elementB.name}`,
+        `${elementB.name} ${elementA.name}`,
+        `${elementB.name}+${elementA.name}`
+    ];
+    if (invalidNames.includes(json.name)) {
+        console.warn('Invalid merged name:', json.name);
+        return false;
+    }
+
+    // Check for emojis inside the name
+    const emojiRegex = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base})/gu;
+    if (emojiRegex.test(json.name)) {
+        console.warn('Name contains emojis:', json.name);
+        return false;
+    }
+
+    return true;
   }
 
   extractJsonsFromString(text: string): any[] {

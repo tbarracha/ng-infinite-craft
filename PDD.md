@@ -25,6 +25,10 @@
 
 - activeElements : Elements []
 
-## This cannot be generated:
-{"name":"Burning Water","emoji":" água 🔥"} -> two names in emoji
-{"name":"Aeroplane lava","emoji":"💥"}
+## Generated things that should not happen:
+two names in emoji:
+- {"name":"Burning Water","emoji":" água 🔥"} 
+
+merge is the result of the two names:
+- {"name":"Aeroplane lava","emoji":"💥"}
+- {"name":"Aeroplane+lava","emoji":"💥"}
