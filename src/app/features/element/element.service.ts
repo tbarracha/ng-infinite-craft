@@ -272,6 +272,12 @@ export class ElementService {
         return false;
     }
 
+    // Check if the name already exists in the elements list
+    if (this.elements.toArray().some(element => element.name === json.name)) {
+        console.warn('Duplicate element name detected:', json.name);
+        return false;
+    }
+
     return true;
   }
 

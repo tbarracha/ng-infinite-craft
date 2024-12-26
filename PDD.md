@@ -32,3 +32,8 @@ two names in emoji:
 merge is the result of the two names:
 - {"name":"Aeroplane lava","emoji":"💥"}
 - {"name":"Aeroplane+lava","emoji":"💥"}
+
+## TODO:
+- [x] Check if emoji already exists
+- [x] Clamp element drag and drop
+- [ ] Confetti on element merged

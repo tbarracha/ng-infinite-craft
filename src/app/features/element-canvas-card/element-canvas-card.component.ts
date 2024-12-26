@@ -59,8 +59,15 @@ export class ElementCanvasCardComponent implements AfterViewInit {
       const newX = event.clientX - this.offsetX;
       const newY = event.clientY - this.offsetY;
 
-      this.canvasElement.x = newX;
-      this.canvasElement.y = newY;
+      // Clamp newX and newY within canvas boundaries
+      this.canvasElement.x = Math.max(
+        0,
+        Math.min(this.canvasWidth - this.cardWidth, newX)
+      );
+      this.canvasElement.y = Math.max(
+        0,
+        Math.min(this.canvasHeight - this.cardHeight, newY)
+      );
 
       this.checkForCollisions();
       event.preventDefault();
