@@ -1,6 +1,8 @@
 
 # Ng Infinity Craft 🌌  
 
+https://ng-infinite-craft.onrender.com
+
 ### TL;DR  
 Ng Infinity Craft is a **7-day prototype** inspired by Infinite Craft. Built with **Angular** and powered by **Transformers.js**, it combines the classic element-merging game with a **local, in-browser LLM** to dynamically generate new elements. Originally meant to be scrapped due to LLM quirks, a shower *aha!* moment brought it back to life. This quick experiment lacks features like saving/loading, canvas element deletion, and dark mode—but it’s all about pushing boundaries and having fun!
 
